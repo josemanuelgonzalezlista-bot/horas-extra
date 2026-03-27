@@ -173,7 +173,7 @@ function buildDaySelector(){
 }
 
 function fmtLabel(v){if(!v)return'';const p=String(v).split('/');if(p.length!==3)return v;return parseInt(p[0])+' de '+MONTHS[parseInt(p[1])-1]+' de '+p[2];}
-function fmtH(h){const n=parseFloat(h);if(isNaN(n))return h+' h';return n%1===0?n+' hora'+(n!==1?'s',''):n.toFixed(1).replace('.',',')+' horas';}
+function fmtH(h){const n=parseFloat(h);if(isNaN(n))return h+' h';return n%1===0?n+' hora'+(n!==1?'s':''):n.toFixed(1).replace('.',',')+' horas';}
 
 function doLogin(){
   const u=document.getElementById('login-user').value.trim().toUpperCase();
