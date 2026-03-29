@@ -111,7 +111,29 @@
     </div>
     <div class="tabs"><div class="tab active" id="tab-btn-0" onclick="showTab(0)">Registrar</div><div class="tab" id="tab-btn-1" onclick="showTab(1)">Mi historial</div></div>
     <div id="emp-tab-0" class="content">
-      <div class="field"><label>Día</label><select id="sel-day"></select></div>
+      <div class="field"><label>Día</label>
+      <div id="cal-wrapper" style="background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+          <button onclick="calPrevMonth()" style="background:none;border:none;color:var(--accent2);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#8249;</button>
+          <span id="cal-title" style="font-size:14px;font-weight:600;color:var(--text);"></span>
+          <button onclick="calNextMonth()" style="background:none;border:none;color:var(--accent2);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#8250;</button>
+        </div>
+        <div style="padding:8px 12px 4px;display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;">
+          <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">L</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">M</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">X</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">J</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">V</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">S</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">D</span>
+        </div>
+        <div id="cal-grid" style="padding:0 12px 12px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;"></div>
+        <div style="padding:8px 16px 12px;border-top:1px solid var(--border);font-size:13px;color:var(--text2);">
+          Seleccionado: <strong id="cal-selected-label" style="color:var(--accent2);"></strong>
+        </div>
+      </div>
+      <input type="hidden" id="sel-day" />
+      </div>
       <div class="row-2">
         <div class="field"><label>Hora inicio</label><select id="sel-start"></select></div>
         <div class="field"><label>Hora fin</label><select id="sel-end"></select></div>
@@ -296,16 +318,77 @@ function showAdminTab(idx){
   if(idx===5)buildDeleteTab();
 }
 
+let calYear=0, calMonth=0, calSelected=null;
+
 function buildDaySelector(){
-  const sel=document.getElementById('sel-day');sel.innerHTML='';
   const today=new Date();
-  for(let i=-90;i<=7;i++){
-    const d=new Date(today);d.setDate(today.getDate()+i);
-    const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yyyy=d.getFullYear();
-    const opt=document.createElement('option');opt.value=dd+'/'+mm+'/'+yyyy;
-    opt.textContent=parseInt(dd)+' de '+MONTHS[d.getMonth()]+' de '+yyyy;
-    if(i===0)opt.selected=true;sel.appendChild(opt);
+  calYear=today.getFullYear();
+  calMonth=today.getMonth();
+  calSelected=today;
+  renderCalendar();
+  setCalSelected(today);
+}
+
+function renderCalendar(){
+  const title=document.getElementById('cal-title');
+  const grid=document.getElementById('cal-grid');
+  title.textContent=MONTHS[calMonth].charAt(0).toUpperCase()+MONTHS[calMonth].slice(1)+' de '+calYear;
+  grid.innerHTML='';
+  const first=new Date(calYear,calMonth,1);
+  const last=new Date(calYear,calMonth+1,0);
+  // Monday=0 offset
+  let startDow=first.getDay()-1; if(startDow<0)startDow=6;
+  // Empty cells before
+  for(let i=0;i<startDow;i++){
+    const cell=document.createElement('div');cell.style.padding='6px 0';grid.appendChild(cell);
   }
+  const today=new Date();today.setHours(0,0,0,0);
+  const maxDate=new Date(today.getFullYear()+10,today.getMonth(),today.getDate());
+  for(let d=1;d<=last.getDate();d++){
+    const date=new Date(calYear,calMonth,d);
+    const cell=document.createElement('div');
+    cell.textContent=d;
+    const isToday=date.getTime()===today.getTime();
+    const isSelected=calSelected&&date.getTime()===new Date(calSelected.getFullYear(),calSelected.getMonth(),calSelected.getDate()).getTime();
+    const isPast=date<new Date(today.getFullYear()-1,today.getMonth(),today.getDate());
+    cell.style.cssText='padding:6px 2px;border-radius:6px;font-size:13px;cursor:pointer;transition:background 0.1s;';
+    if(isSelected){
+      cell.style.background='var(--accent)';cell.style.color='#fff';cell.style.fontWeight='600';
+    } else if(isToday){
+      cell.style.background='var(--accent-dim)';cell.style.color='var(--accent2)';cell.style.fontWeight='600';
+    } else if(isPast){
+      cell.style.color='var(--text3)';
+    } else {
+      cell.style.color='var(--text)';
+    }
+    cell.onmouseover=function(){if(!isSelected)this.style.background='var(--card2)';};
+    cell.onmouseout=function(){if(!isSelected)this.style.background=isToday?'var(--accent-dim)':'';};
+    cell.onclick=function(){setCalSelected(date);};
+    grid.appendChild(cell);
+  }
+}
+
+function setCalSelected(date){
+  calSelected=date;
+  const dd=String(date.getDate()).padStart(2,'0');
+  const mm=String(date.getMonth()+1).padStart(2,'0');
+  const yyyy=date.getFullYear();
+  document.getElementById('sel-day').value=dd+'/'+mm+'/'+yyyy;
+  document.getElementById('cal-selected-label').textContent=parseInt(dd)+' de '+MONTHS[date.getMonth()]+' de '+yyyy;
+  renderCalendar();
+}
+
+function calPrevMonth(){
+  calMonth--;if(calMonth<0){calMonth=11;calYear--;}
+  renderCalendar();
+}
+
+function calNextMonth(){
+  const today=new Date();
+  const maxYear=today.getFullYear()+10;
+  calMonth++;if(calMonth>11){calMonth=0;calYear++;}
+  if(calYear>maxYear){calYear=maxYear;calMonth=11;}
+  renderCalendar();
 }
 
 function buildMonthFilter(){
