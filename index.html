@@ -111,6 +111,12 @@
     </div>
     <div class="tabs"><div class="tab active" id="tab-btn-0" onclick="showTab(0)">Registrar</div><div class="tab" id="tab-btn-1" onclick="showTab(1)">Mi historial</div></div>
     <div id="emp-tab-0" class="content">
+      <div id="pascual-toggle" style="display:none;margin-bottom:4px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;">
+          <button id="tog-extra" onclick="setPascualMode('extra')" style="padding:11px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:var(--font);transition:all 0.15s;">+ Horas extra</button>
+          <button id="tog-neg" onclick="setPascualMode('neg')" style="padding:11px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:var(--card);color:var(--text2);font-family:var(--font);transition:all 0.15s;">— Horas negativas</button>
+        </div>
+      </div>
       <div class="field"><label>Día</label>
       <div id="cal-wrapper" style="background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
@@ -285,6 +291,22 @@ function buildTimeOptions(selId, defaultVal) {
   }
 }
 
+window._pascualMode='extra';
+
+function setPascualMode(mode){
+  window._pascualMode=mode;
+  const btnExtra=document.getElementById('tog-extra');
+  const btnNeg=document.getElementById('tog-neg');
+  if(mode==='extra'){
+    btnExtra.style.background='var(--accent)';btnExtra.style.color='#fff';
+    btnNeg.style.background='var(--card)';btnNeg.style.color='var(--text2)';
+  } else {
+    btnNeg.style.background='var(--danger)';btnNeg.style.color='#fff';
+    btnExtra.style.background='var(--card)';btnExtra.style.color='var(--text2)';
+  }
+  updateHoursPreview();
+}
+
 function updateHoursPreview() {
   const start = document.getElementById('sel-start').value;
   const end   = document.getElementById('sel-end').value;
@@ -292,7 +314,11 @@ function updateHoursPreview() {
   const diff  = timeDiff(start, end);
   if (diff <= 0) { prev.style.display='none'; return; }
   prev.style.display='block';
-  prev.textContent = start+' → '+end+' = '+fmtH(diff);
+  const isNeg = window._pascualMode==='neg';
+  prev.style.background = isNeg ? 'var(--danger-dim)' : 'var(--accent-dim)';
+  prev.style.color = isNeg ? 'var(--danger)' : 'var(--accent2)';
+  prev.style.border = isNeg ? '1px solid rgba(248,113,113,0.3)' : '1px solid rgba(108,99,255,0.3)';
+  prev.textContent = start+' → '+end+' = '+(isNeg?'-':'')+fmtH(diff);
 }
 
 function timeDiff(start, end) {
@@ -404,7 +430,7 @@ function buildMonthFilter(){
 }
 
 function fmtLabel(v){if(!v)return'';const p=String(v).split('/');if(p.length!==3)return v;return parseInt(p[0])+' de '+MONTHS[parseInt(p[1])-1]+' de '+p[2];}
-function fmtH(h){const n=parseFloat(h);if(isNaN(n))return'0 h';return n%1===0?n+' hora'+(n!==1?'s':''):n.toFixed(1).replace('.',',')+' horas';}
+function fmtH(h){const n=parseFloat(h);if(isNaN(n))return'0 h';const abs=Math.abs(n);const sign=n<0?'-':'';return sign+(abs%1===0?abs+' hora'+(abs!==1?'s':''):abs.toFixed(1).replace('.',',')+' horas');}
 
 function doLogin(){
   const u=document.getElementById('login-user').value.trim().toUpperCase();
@@ -426,6 +452,10 @@ function doLogin(){
     document.getElementById('sel-end').onchange=updateHoursPreview;
     document.getElementById('emp-avatar').textContent=emp.initials;
     document.getElementById('emp-name').textContent=emp.name;
+    // Show Pascual toggle
+    const tog=document.getElementById('pascual-toggle');
+    if(u==='PASCUAL'){tog.style.display='block';setPascualMode('extra');}
+    else{tog.style.display='none';window._pascualMode='extra';}
     showTab(0);show('screen-employee');
   }
 }
@@ -444,8 +474,11 @@ function showConfirm(){
     document.getElementById('hours-preview').textContent='La hora de fin debe ser posterior a la de inicio';
     return;
   }
+  const isNeg=window._pascualMode==='neg';
+  const hoursText=isNeg?'<span style="color:var(--danger);">-'+fmtH(diff)+'</span>':'<strong>'+fmtH(diff)+'</strong>';
+  const typeText=isNeg?'<span style="display:inline-block;background:var(--danger-dim);color:var(--danger);padding:2px 10px;border-radius:20px;font-size:12px;margin-bottom:4px;">Horas negativas</span><br>':'';
   document.getElementById('confirm-msg').innerHTML=
-    'El día <strong>'+fmtLabel(day)+'</strong><br>de <strong>'+start+'</strong> a <strong>'+end+'</strong><br>has hecho <strong>'+fmtH(diff)+'</strong>';
+    typeText+'El día <strong>'+fmtLabel(day)+'</strong><br>de <strong>'+start+'</strong> a <strong>'+end+'</strong><br>has hecho '+hoursText;
   document.getElementById('confirm-saving').style.display='none';
   document.getElementById('confirm-err').style.display='none';
   document.getElementById('confirm-btns').style.display='flex';
@@ -481,8 +514,11 @@ async function doConfirm(){
   document.getElementById('btn-confirm').disabled=true;document.getElementById('btn-cancel').disabled=true;
   document.getElementById('confirm-btns').style.display='none';document.getElementById('confirm-saving').style.display='flex';document.getElementById('confirm-err').style.display='none';
   try{
-    await dbInsert({empleado:emp,fecha:day,horas:diff,hora_inicio:start,hora_fin:end,timestamp:now});
-    document.getElementById('success-msg').innerHTML='<strong>'+fmtLabel(day)+'</strong><br>'+start+' a '+end+' — '+fmtH(diff)+' ✓';
+    const isNeg=window._pascualMode==='neg';
+    const horasVal=isNeg?-diff:diff;
+    await dbInsert({empleado:emp,fecha:day,horas:horasVal,hora_inicio:start,hora_fin:end,timestamp:now});
+    const horasLabel=isNeg?'<span style="color:var(--danger);">-'+fmtH(diff)+'</span>':fmtH(diff)+' ✓';
+    document.getElementById('success-msg').innerHTML='<strong>'+fmtLabel(day)+'</strong><br>'+start+' a '+end+' — '+horasLabel;
     show('screen-success');
   }catch(e){
     document.getElementById('confirm-saving').style.display='none';document.getElementById('confirm-err').style.display='block';
