@@ -278,9 +278,9 @@ function buildTimeOptions(selId, defaultVal) {
   const sel = document.getElementById(selId);
   sel.innerHTML = '';
   for (let h=0; h<24; h++) {
-    for (let m=0; m<60; m+=30) {
+    for (let m=0; m<60; m+=15) {
       const hh = String(h).padStart(2,'0');
-      const mm = m===0?'00':'30';
+      const mm = String(m).padStart(2,'0');
       const val = hh+':'+mm;
       const opt = document.createElement('option');
       opt.value = val;
