@@ -297,7 +297,30 @@
       <button class="btn btn-danger" onclick="previewDeleteMonth()" style="width:100%;">Ver registros a borrar</button>
       <button class="btn btn-danger" id="del-month-btn" onclick="deleteMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar mes completo</button>
       <div id="del-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>
-    
+
+      <div class="section-title" style="margin-top:8px;">Borrar dieta por día</div>
+      <div class="field"><label>Empleado</label><select id="del-diet-emp" onchange="loadDelDietRecords()">
+        <option value="Marcelino">Marcelino</option>
+        <option value="Pascual">Pascual</option>
+      </select></div>
+      <div class="field"><label>Dietas del empleado</label><select id="del-diet-sel"><option value="">— Selecciona un empleado —</option></select></div>
+      <div id="del-diet-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
+      <button class="btn btn-danger" id="del-diet-btn" onclick="deleteDietRecord()" style="width:100%;" disabled>Borrar esta dieta</button>
+
+      <div class="section-title" style="margin-top:8px;">Borrar dietas de un mes completo</div>
+      <div class="row-2">
+        <div class="field"><label>Empleado</label><select id="del-diet-emp-month">
+          <option value="Marcelino">Marcelino</option>
+          <option value="Pascual">Pascual</option>
+        </select></div>
+        <div class="field"><label>Mes</label><select id="del-diet-month-sel"></select></div>
+      </div>
+      <div id="del-diet-month-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
+      <button class="btn btn-danger" onclick="previewDeleteDietMonth()" style="width:100%;">Ver dietas a borrar</button>
+      <button class="btn btn-danger" id="del-diet-month-btn" onclick="deleteDietMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar dietas del mes</button>
+      <div id="del-diet-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>
+    </div>
+
 <script>
 const SUPABASE_URL='https://eqzvhksyocljlgrrviic.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxenZoa3N5b2NsamxncnJ2aWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NDcwMjksImV4cCI6MjA5MDEyMzAyOX0.RkBJw7SV4OW5xVxAx_3Fq1v2kI7GvLvgB6-8Ptjp_v8';
@@ -811,25 +834,31 @@ async function generatePDF(){
 
 
 function buildDeleteTab(){
-  // Employee selectors
+  // Employee selectors for hours
   ['del-emp-day','del-emp-month'].forEach(id=>{
     const sel=document.getElementById(id);sel.innerHTML='';
     EMP_LIST.forEach(e=>{const opt=document.createElement('option');opt.value=e.name;opt.textContent=e.name;sel.appendChild(opt);});
   });
-  // Month selector
-  const mSel=document.getElementById('del-month-sel');mSel.innerHTML='';
-  const today=new Date();
-  for(let i=0;i<18;i++){
-    const d=new Date(today.getFullYear(),today.getMonth()-i,1);
-    const val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-    const opt=document.createElement('option');opt.value=val;
-    opt.textContent=MONTHS[d.getMonth()]+' '+d.getFullYear();
-    if(i===0)opt.selected=true;mSel.appendChild(opt);
-  }
+  // Month selectors (hours + diets)
+  ['del-month-sel','del-diet-month-sel'].forEach(id=>{
+    const mSel=document.getElementById(id);mSel.innerHTML='';
+    const today=new Date();
+    for(let i=0;i<18;i++){
+      const d=new Date(today.getFullYear(),today.getMonth()-i,1);
+      const val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      const opt=document.createElement('option');opt.value=val;
+      opt.textContent=MONTHS[d.getMonth()]+' '+d.getFullYear();
+      if(i===0)opt.selected=true;mSel.appendChild(opt);
+    }
+  });
   loadDelDayRecords();
+  loadDelDietRecords();
   document.getElementById('del-month-preview').style.display='none';
   document.getElementById('del-month-btn').style.display='none';
   document.getElementById('del-status').style.display='none';
+  document.getElementById('del-diet-month-preview').style.display='none';
+  document.getElementById('del-diet-month-btn').style.display='none';
+  document.getElementById('del-diet-status').style.display='none';
 }
 
 let delRecordsCache=[];
@@ -1072,6 +1101,115 @@ async function loadDietHistory(){
     }).join('');
     totEl.textContent=tot.toFixed(2).replace('.',',')+' €';
   }catch(e){stEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';}
+}
+
+
+// ── BORRAR DIETAS ───────────────────────────────────────────────
+let delDietCache=[];
+
+async function loadDelDietRecords(){
+  const emp=document.getElementById('del-diet-emp').value;
+  const sel=document.getElementById('del-diet-sel');
+  const btn=document.getElementById('del-diet-btn');
+  const prev=document.getElementById('del-diet-preview');
+  sel.innerHTML='<option value="">Cargando...</option>';
+  btn.disabled=true;prev.style.display='none';
+  try{
+    const rows=await dbSelectDiets(emp);
+    delDietCache=rows;
+    if(!rows.length){sel.innerHTML='<option value="">Sin dietas registradas</option>';return;}
+    sel.innerHTML='<option value="">— Elige una dieta —</option>';
+    rows.forEach(r=>{
+      const opt=document.createElement('option');opt.value=r.id;
+      opt.textContent=fmtLabel(r.fecha)+' — '+parseFloat(r.importe).toFixed(2).replace('.',',')+' €';
+      sel.appendChild(opt);
+    });
+    sel.onchange=()=>{
+      const id=sel.value;
+      if(!id){prev.style.display='none';btn.disabled=true;return;}
+      const r=delDietCache.find(x=>String(x.id)===id);
+      if(!r)return;
+      prev.style.display='block';
+      prev.innerHTML='Se borrará: <strong>'+fmtLabel(r.fecha)+'</strong> — <strong>'+parseFloat(r.importe).toFixed(2).replace('.',',')+' €</strong>';
+      btn.disabled=false;
+    };
+  }catch(e){sel.innerHTML='<option value="">Error al cargar</option>';}
+}
+
+async function deleteDietRecord(){
+  const id=document.getElementById('del-diet-sel').value;
+  if(!id)return;
+  const btn=document.getElementById('del-diet-btn');
+  if(!confirm('¿Seguro que quieres borrar esta dieta? Esta acción no se puede deshacer.'))return;
+  btn.disabled=true;btn.textContent='Borrando...';
+  try{
+    const res=await fetch(API_DIETS+'?id=eq.'+id,{method:'DELETE',headers:HDR});
+    if(!res.ok)throw new Error('Error HTTP '+res.status);
+    showDietDelStatus('Dieta borrada correctamente ✓','success');
+    await loadDelDietRecords();
+  }catch(e){showDietDelStatus('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='Borrar esta dieta';}
+}
+
+async function previewDeleteDietMonth(){
+  const emp=document.getElementById('del-diet-emp-month').value;
+  const monthVal=document.getElementById('del-diet-month-sel').value;
+  const [yyyy,mm]=monthVal.split('-');
+  const prev=document.getElementById('del-diet-month-preview');
+  const btn=document.getElementById('del-diet-month-btn');
+  prev.style.display='none';btn.style.display='none';
+  document.getElementById('del-diet-status').style.display='none';
+  try{
+    const rows=await dbSelectAllDiets();
+    const filtered=rows.filter(r=>{
+      if(r.empleado!==emp)return false;
+      const p=String(r.fecha).split('/');
+      return p.length===3&&p[2]===yyyy&&p[1]===mm;
+    });
+    if(!filtered.length){
+      prev.style.display='block';
+      prev.textContent='No hay dietas de '+emp+' en '+MONTHS[parseInt(mm)-1]+' '+yyyy;
+      btn.style.display='none';return;
+    }
+    const tot=filtered.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+    prev.style.display='block';
+    prev.innerHTML='Se borrarán <strong>'+filtered.length+' dieta'+(filtered.length!==1?'s':'')+'</strong> de <strong>'+emp+'</strong> en <strong>'+MONTHS[parseInt(mm)-1]+' '+yyyy+'</strong> ('+tot.toFixed(2).replace('.',',')+' € en total).<br><br>'+
+      filtered.map(r=>'· '+fmtLabel(r.fecha)+' — '+parseFloat(r.importe).toFixed(2).replace('.',',')+' €').join('<br>');
+    btn.style.display='block';
+  }catch(e){prev.style.display='block';prev.textContent='Error: '+e.message;}
+}
+
+async function deleteDietMonth(){
+  const emp=document.getElementById('del-diet-emp-month').value;
+  const monthVal=document.getElementById('del-diet-month-sel').value;
+  const [yyyy,mm]=monthVal.split('-');
+  const monthName=MONTHS[parseInt(mm)-1]+' '+yyyy;
+  const btn=document.getElementById('del-diet-month-btn');
+  if(!confirm('¿SEGURO? Se borrarán TODAS las dietas de '+emp+' en '+monthName+'. Esta acción NO se puede deshacer.'))return;
+  btn.disabled=true;btn.textContent='Borrando...';
+  try{
+    const rows=await dbSelectAllDiets();
+    const ids=rows.filter(r=>{
+      if(r.empleado!==emp)return false;
+      const p=String(r.fecha).split('/');
+      return p.length===3&&p[2]===yyyy&&p[1]===mm;
+    }).map(r=>r.id);
+    if(!ids.length){showDietDelStatus('No se encontraron dietas','error');return;}
+    const res=await fetch(API_DIETS+'?id=in.('+ids.join(',')+')',{method:'DELETE',headers:HDR});
+    if(!res.ok)throw new Error('Error HTTP '+res.status);
+    showDietDelStatus('Borradas '+ids.length+' dieta'+(ids.length!==1?'s':'')+' de '+emp+' en '+monthName+' ✓','success');
+    document.getElementById('del-diet-month-preview').style.display='none';
+    btn.style.display='none';
+  }catch(e){showDietDelStatus('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='CONFIRMAR — Borrar dietas del mes';}
+}
+
+function showDietDelStatus(msg,type){
+  const el=document.getElementById('del-diet-status');
+  el.style.display='block';el.textContent=msg;
+  if(type==='success'){el.style.background='var(--success-dim)';el.style.color='var(--success)';el.style.border='1px solid rgba(16,185,129,0.3)';}
+  else{el.style.background='var(--danger-dim)';el.style.color='var(--danger)';el.style.border='1px solid rgba(248,113,113,0.2)';}
+  setTimeout(()=>{el.style.display='none';},4000);
 }
 
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus();});
