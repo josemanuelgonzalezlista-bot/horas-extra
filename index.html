@@ -109,7 +109,11 @@
         <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div class="avatar" id="emp-avatar"></div><button class="logout-btn" onclick="doLogout()">Salir</button></div>
       </div>
     </div>
-    <div class="tabs"><div class="tab active" id="tab-btn-0" onclick="showTab(0)">Registrar</div><div class="tab" id="tab-btn-1" onclick="showTab(1)">Mi historial</div></div>
+    <div class="tabs">
+      <div class="tab active" id="tab-btn-0" onclick="showTab(0)">Registrar</div>
+      <div class="tab" id="tab-btn-1" onclick="showTab(1)">Mi historial</div>
+      <div class="tab" id="tab-btn-2" onclick="showTab(2)" style="display:none;">Dietas</div>
+    </div>
     <div id="emp-tab-0" class="content">
       <div id="pascual-toggle" style="display:none;margin-bottom:4px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;">
@@ -151,6 +155,62 @@
       <div class="total-bar"><span>Total horas registradas</span><strong id="hist-total">— h</strong></div>
       <div id="hist-status" class="status-row"><div class="spinner"></div><span>Cargando...</span></div>
       <div class="history-list" id="history-list"></div>
+    </div>
+    <div id="emp-tab-2" class="content" style="display:none;">
+      <div class="field"><label>Día</label>
+        <div id="cal-wrapper-diet" style="background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+            <button onclick="calDietPrev()" style="background:none;border:none;color:var(--accent2);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#8249;</button>
+            <span id="cal-diet-title" style="font-size:14px;font-weight:600;color:var(--text);"></span>
+            <button onclick="calDietNext()" style="background:none;border:none;color:var(--accent2);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#8250;</button>
+          </div>
+          <div style="padding:8px 12px 4px;display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;">
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">L</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">M</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">X</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">J</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">V</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">S</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">D</span>
+          </div>
+          <div id="cal-diet-grid" style="padding:0 12px 12px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;"></div>
+          <div style="padding:8px 16px 12px;border-top:1px solid var(--border);font-size:13px;color:var(--text2);">
+            Seleccionado: <strong id="cal-diet-label" style="color:var(--accent2);"></strong>
+          </div>
+        </div>
+        <input type="hidden" id="diet-day" />
+      </div>
+      <div class="field">
+        <label>Importe por comida (€)</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="text" id="diet-price" value="14" style="flex:1;font-size:18px;font-weight:600;text-align:center;" />
+          <button onclick="document.getElementById('diet-price').value='14'" class="btn btn-sm" style="white-space:nowrap;">Reset 14€</button>
+        </div>
+      </div>
+      <div id="diet-preview" style="text-align:center;padding:10px;background:var(--success-dim);border-radius:var(--radius-sm);border:1px solid rgba(16,185,129,0.3);font-size:14px;color:var(--success);font-family:var(--mono);display:none;"></div>
+      <button class="btn btn-primary" onclick="showDietConfirm()" style="width:100%;">REGISTRAR DIETA</button>
+      <div class="total-bar" style="margin-top:4px;"><span>Total dietas registradas</span><strong id="diet-total">— €</strong></div>
+      <div id="diet-hist-status" class="status-row"><div class="spinner"></div><span>Cargando...</span></div>
+      <div class="history-list" id="diet-history-list"></div>
+    </div>
+  </div>
+
+  <!-- CONFIRMAR DIETA -->
+  <div class="screen" id="screen-diet-confirm">
+    <div class="header"><h1>Confirmar dieta</h1><div class="sub">Revisa antes de registrar</div></div>
+    <div class="content" style="justify-content:center;">
+      <div class="confirm-card">
+        <div class="confirm-icon" style="background:var(--success-dim);border-color:var(--success);">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" stroke="#10b981" stroke-width="1.5"/><path d="M8 14l4 4 8-8" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <p id="diet-confirm-msg"></p>
+        <div id="diet-confirm-saving" class="status-row" style="display:none;"><div class="spinner"></div><span>Guardando dieta...</span></div>
+        <div id="diet-confirm-err" style="display:none;font-size:13px;color:var(--danger);padding:10px 14px;background:var(--danger-dim);border-radius:var(--radius-sm);width:100%;text-align:center;"></div>
+        <div class="btn-row" id="diet-confirm-btns" style="width:100%;">
+          <button class="btn btn-danger" onclick="cancelDietConfirm()">Cancelar</button>
+          <button class="btn btn-primary" id="diet-btn-confirm" onclick="doDietConfirm()">Confirmar</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -330,8 +390,9 @@ function timeDiff(start, end) {
 function show(id){document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none';});const el=document.getElementById(id);el.style.display='flex';requestAnimationFrame(()=>el.classList.add('active'));}
 
 function showTab(idx){
-  [0,1].forEach(i=>{document.getElementById('emp-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('tab-btn-'+i).classList.toggle('active',i===idx);});
+  [0,1,2].forEach(i=>{document.getElementById('emp-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('tab-btn-'+i).classList.toggle('active',i===idx);});
   if(idx===1)loadHistory();
+  if(idx===2){buildDietCalendar();loadDietHistory();}
 }
 
 function showAdminTab(idx){
@@ -456,6 +517,9 @@ function doLogin(){
     const tog=document.getElementById('pascual-toggle');
     if(u==='PASCUAL'){tog.style.display='block';setPascualMode('extra');}
     else{tog.style.display='none';window._pascualMode='extra';}
+    // Show diet tab for MARCELINO and PASCUAL
+    const dietTab=document.getElementById('tab-btn-2');
+    dietTab.style.display=['MARCELINO','PASCUAL'].includes(u)?'block':'none';
     showTab(0);show('screen-employee');
   }
 }
@@ -527,7 +591,7 @@ async function doConfirm(){
   }
 }
 
-function backToForm(){buildDaySelector();show('screen-employee');showTab(0);}
+function backToForm(){buildDaySelector();show('screen-employee');showTab(0);document.getElementById('diet-price').value='14';}
 
 // Parsear fecha dd/mm/yyyy a objeto para comparar
 function parseDate(s){const p=String(s).split('/');return p.length===3?new Date(p[2],p[1]-1,p[0]):new Date(0);}
@@ -554,11 +618,15 @@ async function loadAdminSummary(){
   const listEl=document.getElementById('adm-summary'),stEl=document.getElementById('adm-status-0');
   listEl.innerHTML='';stEl.style.display='flex';
   try{
-    const rows=await dbSelectAll();stEl.style.display='none';
+    const [rows,dietAll]=await Promise.all([dbSelectAll(),dbSelectAllDiets()]);
+    stEl.style.display='none';
     listEl.innerHTML=EMP_LIST.map(info=>{
       const mine=rows.filter(r=>r.empleado===info.name);
       const tot=mine.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
-      return '<div class="admin-row"><div class="avatar" style="font-size:11px;">'+info.initials+'</div><div class="info"><div class="name">'+info.name+'</div><div class="detail">'+mine.length+' registro'+(mine.length!==1?'s':'')+'</div></div><span class="hours-pill">'+tot.toFixed(1).replace('.',',')+' h</span></div>';
+      const dietRows=dietAll.filter(d=>d.empleado===info.name);
+      const dietTot=dietRows.reduce((s,d)=>s+(parseFloat(d.importe)||0),0);
+      const dietBadge=['MARCELINO','PASCUAL'].includes(info.key)?'<span class="hours-pill" style="background:var(--success-dim);color:var(--success);border-color:rgba(16,185,129,0.3);margin-left:4px;">'+dietTot.toFixed(2).replace('.',',')+' €</span>':'';
+      return '<div class="admin-row"><div class="avatar" style="font-size:11px;">'+info.initials+'</div><div class="info"><div class="name">'+info.name+'</div><div class="detail">'+mine.length+' registro'+(mine.length!==1?'s':'')+'</div></div><div style="display:flex;gap:4px;align-items:center;"><span class="hours-pill">'+tot.toFixed(1).replace('.',',')+' h</span>'+dietBadge+'</div></div>';
     }).join('');
   }catch(e){stEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';}
 }
@@ -872,6 +940,138 @@ function showDelStatus(msg,type){
   if(type==='success'){el.style.background='var(--success-dim)';el.style.color='var(--success)';el.style.border='1px solid rgba(16,185,129,0.3)';}
   else{el.style.background='var(--danger-dim)';el.style.color='var(--danger)';el.style.border='1px solid rgba(248,113,113,0.2)';}
   setTimeout(()=>{el.style.display='none';},4000);
+}
+
+
+// ── DIETAS ─────────────────────────────────────────────────────
+const API_DIETS=SUPABASE_URL+'/rest/v1/dietas';
+
+async function dbInsertDiet(row){
+  const res=await fetch(API_DIETS,{method:'POST',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(row)});
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+res.status);}
+}
+async function dbSelectDiets(emp){
+  const res=await fetch(API_DIETS+'?empleado=eq.'+encodeURIComponent(emp)+'&order=id.desc',{headers:HDR});
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+res.status);}
+  return res.json();
+}
+async function dbSelectAllDiets(){
+  const res=await fetch(API_DIETS+'?order=id.desc&limit=1000',{headers:HDR});
+  if(!res.ok) return [];
+  return res.json();
+}
+
+// Diet calendar
+let calDietYear=0,calDietMonth=0,calDietSelected=null;
+
+function buildDietCalendar(){
+  const today=new Date();
+  calDietYear=today.getFullYear();calDietMonth=today.getMonth();calDietSelected=today;
+  renderDietCalendar();setDietCalSelected(today);
+}
+
+function renderDietCalendar(){
+  const title=document.getElementById('cal-diet-title');
+  const grid=document.getElementById('cal-diet-grid');
+  title.textContent=MONTHS[calDietMonth].charAt(0).toUpperCase()+MONTHS[calDietMonth].slice(1)+' de '+calDietYear;
+  grid.innerHTML='';
+  const first=new Date(calDietYear,calDietMonth,1);
+  const last=new Date(calDietYear,calDietMonth+1,0);
+  let startDow=first.getDay()-1;if(startDow<0)startDow=6;
+  for(let i=0;i<startDow;i++){const cell=document.createElement('div');cell.style.padding='6px 0';grid.appendChild(cell);}
+  const today=new Date();today.setHours(0,0,0,0);
+  for(let d=1;d<=last.getDate();d++){
+    const date=new Date(calDietYear,calDietMonth,d);
+    const cell=document.createElement('div');cell.textContent=d;
+    const isToday=date.getTime()===today.getTime();
+    const isSel=calDietSelected&&date.getTime()===new Date(calDietSelected.getFullYear(),calDietSelected.getMonth(),calDietSelected.getDate()).getTime();
+    cell.style.cssText='padding:6px 2px;border-radius:6px;font-size:13px;cursor:pointer;transition:background 0.1s;';
+    if(isSel){cell.style.background='var(--success)';cell.style.color='#fff';cell.style.fontWeight='600';}
+    else if(isToday){cell.style.background='var(--success-dim)';cell.style.color='var(--success)';cell.style.fontWeight='600';}
+    else{cell.style.color='var(--text)';}
+    cell.onmouseover=function(){if(!isSel)this.style.background='var(--card2)';};
+    cell.onmouseout=function(){if(!isSel)this.style.background=isToday?'var(--success-dim)':'';};
+    cell.onclick=function(){setDietCalSelected(date);};
+    grid.appendChild(cell);
+  }
+}
+
+function setDietCalSelected(date){
+  calDietSelected=date;
+  const dd=String(date.getDate()).padStart(2,'0');
+  const mm=String(date.getMonth()+1).padStart(2,'0');
+  const yyyy=date.getFullYear();
+  document.getElementById('diet-day').value=dd+'/'+mm+'/'+yyyy;
+  document.getElementById('cal-diet-label').textContent=parseInt(dd)+' de '+MONTHS[date.getMonth()]+' de '+yyyy;
+  const price=parseFloat(document.getElementById('diet-price').value)||14;
+  const prev=document.getElementById('diet-preview');
+  prev.style.display='block';
+  prev.textContent=parseInt(dd)+' de '+MONTHS[date.getMonth()]+' — '+price.toFixed(2).replace('.',',')+' €';
+  renderDietCalendar();
+}
+
+function calDietPrev(){calDietMonth--;if(calDietMonth<0){calDietMonth=11;calDietYear--;}renderDietCalendar();}
+function calDietNext(){
+  const today=new Date();const maxYear=today.getFullYear()+10;
+  calDietMonth++;if(calDietMonth>11){calDietMonth=0;calDietYear++;}
+  if(calDietYear>maxYear){calDietYear=maxYear;calDietMonth=11;}
+  renderDietCalendar();
+}
+
+function showDietConfirm(){
+  const day=document.getElementById('diet-day').value;
+  const price=parseFloat(document.getElementById('diet-price').value);
+  if(!day){alert('Selecciona un día');return;}
+  if(isNaN(price)||price<=0){alert('Introduce un importe válido');return;}
+  document.getElementById('diet-confirm-msg').innerHTML=
+    'El día <strong>'+fmtLabel(day)+'</strong><br>dieta por importe de <strong style="color:var(--success);">'+price.toFixed(2).replace('.',',')+' €</strong>';
+  document.getElementById('diet-confirm-saving').style.display='none';
+  document.getElementById('diet-confirm-err').style.display='none';
+  document.getElementById('diet-confirm-btns').style.display='flex';
+  document.getElementById('diet-btn-confirm').disabled=false;
+  show('screen-diet-confirm');
+}
+
+function cancelDietConfirm(){show('screen-employee');showTab(2);}
+
+async function doDietConfirm(){
+  const day=document.getElementById('diet-day').value;
+  const price=parseFloat(document.getElementById('diet-price').value);
+  const now=new Date().toLocaleString('es-ES');
+  const empInfo=EMP_LIST.find(e=>e.key===currentUser);
+  document.getElementById('diet-btn-confirm').disabled=true;
+  document.getElementById('diet-confirm-btns').style.display='none';
+  document.getElementById('diet-confirm-saving').style.display='flex';
+  try{
+    await dbInsertDiet({empleado:empInfo.name,fecha:day,importe:price,timestamp:now});
+    document.getElementById('success-msg').innerHTML='Dieta del <strong>'+fmtLabel(day)+'</strong><br><strong style="color:var(--success);">'+price.toFixed(2).replace('.',',')+' €</strong> registrada ✓';
+    show('screen-success');
+  }catch(e){
+    document.getElementById('diet-confirm-saving').style.display='none';
+    document.getElementById('diet-confirm-err').style.display='block';
+    document.getElementById('diet-confirm-err').textContent='Error: '+e.message;
+    document.getElementById('diet-confirm-btns').style.display='flex';
+    document.getElementById('diet-btn-confirm').disabled=false;
+  }
+}
+
+async function loadDietHistory(){
+  const listEl=document.getElementById('diet-history-list');
+  const stEl=document.getElementById('diet-hist-status');
+  const totEl=document.getElementById('diet-total');
+  listEl.innerHTML='';stEl.style.display='flex';totEl.textContent='— €';
+  try{
+    const empInfo=EMP_LIST.find(e=>e.key===currentUser);
+    const rows=await dbSelectDiets(empInfo.name);
+    stEl.style.display='none';
+    if(!rows.length){listEl.innerHTML='<div class="empty">Sin dietas registradas</div>';return;}
+    let tot=0;
+    listEl.innerHTML=rows.map(r=>{
+      tot+=parseFloat(r.importe)||0;
+      return '<div class="history-item"><span class="date">'+fmtLabel(r.fecha)+'</span><span class="hours-pill" style="background:var(--success-dim);color:var(--success);border-color:rgba(16,185,129,0.3);">'+parseFloat(r.importe).toFixed(2).replace('.',',')+' €</span></div>';
+    }).join('');
+    totEl.textContent=tot.toFixed(2).replace('.',',')+' €';
+  }catch(e){stEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';}
 }
 
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus();});
