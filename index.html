@@ -545,7 +545,7 @@ function doLogin(){
     document.getElementById('emp-name').textContent=emp.name;
     // Show Pascual toggle
     const tog=document.getElementById('pascual-toggle');
-    if(u==='PASCUAL'){tog.style.display='block';setPascualMode('extra');}
+    if(u==='PASCUAL'||u==='ROGELIO'){tog.style.display='block';setPascualMode('extra');}
     else{tog.style.display='none';window._pascualMode='extra';}
     // Show diet tab for MARCELINO and PASCUAL
     const dietTab=document.getElementById('tab-btn-2');
