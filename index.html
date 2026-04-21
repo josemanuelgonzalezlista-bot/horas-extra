@@ -113,6 +113,7 @@
       <div class="tab active" id="tab-btn-0" onclick="showTab(0)">Registrar</div>
       <div class="tab" id="tab-btn-1" onclick="showTab(1)">Mi historial</div>
       <div class="tab" id="tab-btn-2" onclick="showTab(2)" style="display:none;">Dietas</div>
+      <div class="tab" id="tab-btn-3" onclick="showTab(3)" style="display:none;">Tareas</div>
     </div>
     <div id="emp-tab-0" class="content">
       <div id="pascual-toggle" style="display:none;margin-bottom:4px;">
@@ -193,6 +194,41 @@
       <div id="diet-hist-status" class="status-row"><div class="spinner"></div><span>Cargando...</span></div>
       <div class="history-list" id="diet-history-list"></div>
     </div>
+    <div id="emp-tab-3" class="content" style="display:none;">
+      <div class="field"><label>Descripción de la tarea</label>
+        <input type="text" id="tarea-desc" placeholder="Ej: Trabajos de pintura..." autocomplete="off" />
+      </div>
+      <div class="field"><label>Importe (€)</label>
+        <input type="text" id="tarea-importe" placeholder="Ej: 50" inputmode="decimal" />
+      </div>
+      <div class="field"><label>Fecha</label>
+        <div id="cal-wrapper-tarea" style="background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+            <button onclick="calTareaPrev()" style="background:none;border:none;color:var(--accent2);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#8249;</button>
+            <span id="cal-tarea-title" style="font-size:14px;font-weight:600;color:var(--text);"></span>
+            <button onclick="calTareaNext()" style="background:none;border:none;color:var(--accent2);font-size:20px;cursor:pointer;padding:0 4px;line-height:1;">&#8250;</button>
+          </div>
+          <div style="padding:8px 12px 4px;display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;">
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">L</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">M</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">X</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">J</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">V</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">S</span>
+            <span style="font-size:11px;font-weight:600;color:var(--text3);padding:4px 0;">D</span>
+          </div>
+          <div id="cal-tarea-grid" style="padding:0 12px 12px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;"></div>
+          <div style="padding:8px 16px 12px;border-top:1px solid var(--border);font-size:13px;color:var(--text2);">
+            Seleccionado: <strong id="cal-tarea-label" style="color:var(--warn);"></strong>
+          </div>
+        </div>
+        <input type="hidden" id="tarea-day" />
+      </div>
+      <button class="btn btn-primary" onclick="showTareaConfirm()" style="width:100%;background:var(--warn);border-color:var(--warn);box-shadow:0 4px 20px rgba(245,158,11,0.3);">AÑADIR TAREA</button>
+      <div class="total-bar" style="margin-top:4px;background:var(--warn-dim);border-color:rgba(245,158,11,0.3);"><span>Total tareas registradas</span><strong id="tarea-total" style="color:var(--warn);">— €</strong></div>
+      <div id="tarea-hist-status" class="status-row"><div class="spinner"></div><span>Cargando...</span></div>
+      <div class="history-list" id="tarea-history-list"></div>
+    </div>
   </div>
 
   <!-- CONFIRMAR DIETA -->
@@ -209,6 +245,25 @@
         <div class="btn-row" id="diet-confirm-btns" style="width:100%;">
           <button class="btn btn-danger" onclick="cancelDietConfirm()">Cancelar</button>
           <button class="btn btn-primary" id="diet-btn-confirm" onclick="doDietConfirm()">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRMAR TAREA -->
+  <div class="screen" id="screen-tarea-confirm">
+    <div class="header"><h1>Confirmar tarea</h1><div class="sub">Revisa antes de registrar</div></div>
+    <div class="content" style="justify-content:center;">
+      <div class="confirm-card">
+        <div class="confirm-icon" style="background:var(--warn-dim);border-color:var(--warn);">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="13" stroke="#f59e0b" stroke-width="1.5"/><path d="M14 8v6h4" stroke="#f59e0b" stroke-width="1.8" stroke-linecap="round"/><circle cx="14" cy="19" r="1" fill="#f59e0b"/></svg>
+        </div>
+        <p id="tarea-confirm-msg"></p>
+        <div id="tarea-confirm-saving" class="status-row" style="display:none;"><div class="spinner"></div><span>Guardando tarea...</span></div>
+        <div id="tarea-confirm-err" style="display:none;font-size:13px;color:var(--danger);padding:10px 14px;background:var(--danger-dim);border-radius:var(--radius-sm);width:100%;text-align:center;"></div>
+        <div class="btn-row" id="tarea-confirm-btns" style="width:100%;">
+          <button class="btn btn-danger" onclick="cancelTareaConfirm()">Cancelar</button>
+          <button class="btn btn-primary" id="tarea-btn-confirm" onclick="doTareaConfirm()" style="background:var(--warn);border-color:var(--warn);">Confirmar</button>
         </div>
       </div>
     </div>
@@ -285,6 +340,9 @@
       </select></div>
       <div class="field"><label>Mes</label><select id="pdf-diet-month"></select></div>
       <button class="btn btn-primary" onclick="generateDietPDF()" style="width:100%;background:var(--success);border-color:var(--success);box-shadow:0 4px 20px rgba(16,185,129,0.3);">Generar PDF — Dietas</button>
+      <div class="section-title" style="margin-top:4px;">Informe de tareas extra (Rogelio)</div>
+      <div class="field"><label>Mes</label><select id="pdf-tarea-month"></select></div>
+      <button class="btn btn-primary" onclick="generateTareaPDF()" style="width:100%;background:var(--warn);border-color:var(--warn);box-shadow:0 4px 20px rgba(245,158,11,0.3);">Generar PDF — Tareas</button>
     </div>
 
 </div>
@@ -326,6 +384,18 @@
       <button class="btn btn-danger" onclick="previewDeleteDietMonth()" style="width:100%;">Ver dietas a borrar</button>
       <button class="btn btn-danger" id="del-diet-month-btn" onclick="deleteDietMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar dietas del mes</button>
       <div id="del-diet-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>
+
+      <div class="section-title" style="margin-top:8px;">Borrar tarea de Rogelio</div>
+      <div class="field"><label>Tareas registradas</label><select id="del-tarea-sel"><option value="">Cargando...</option></select></div>
+      <div id="del-tarea-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
+      <button class="btn btn-danger" id="del-tarea-btn" onclick="deleteTareaRecord()" style="width:100%;" disabled>Borrar esta tarea</button>
+
+      <div class="section-title" style="margin-top:8px;">Borrar tareas de un mes completo</div>
+      <div class="field"><label>Mes</label><select id="del-tarea-month-sel"></select></div>
+      <div id="del-tarea-month-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
+      <button class="btn btn-danger" onclick="previewDeleteTareaMonth()" style="width:100%;">Ver tareas a borrar</button>
+      <button class="btn btn-danger" id="del-tarea-month-btn" onclick="deleteTareaMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar tareas del mes</button>
+      <div id="del-tarea-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>
     </div>
 
 <script>
@@ -420,9 +490,10 @@ function timeDiff(start, end) {
 function show(id){document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none';});const el=document.getElementById(id);el.style.display='flex';requestAnimationFrame(()=>el.classList.add('active'));}
 
 function showTab(idx){
-  [0,1,2].forEach(i=>{document.getElementById('emp-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('tab-btn-'+i).classList.toggle('active',i===idx);});
+  [0,1,2,3].forEach(i=>{document.getElementById('emp-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('tab-btn-'+i).classList.toggle('active',i===idx);});
   if(idx===1)loadHistory();
   if(idx===2){buildDietCalendar();loadDietHistory();}
+  if(idx===3){buildTareaCalendar();loadTareaHistory();}
 }
 
 function showAdminTab(idx){
@@ -550,6 +621,9 @@ function doLogin(){
     // Show diet tab for MARCELINO and PASCUAL
     const dietTab=document.getElementById('tab-btn-2');
     dietTab.style.display=['MARCELINO','PASCUAL'].includes(u)?'block':'none';
+    // Show tareas tab for ROGELIO
+    const tareaTab=document.getElementById('tab-btn-3');
+    tareaTab.style.display=u==='ROGELIO'?'block':'none';
     showTab(0);show('screen-employee');
   }
 }
@@ -733,6 +807,64 @@ async function generateDietPDF(){
   finally{btn.disabled=false;btn.textContent='Generar PDF — Dietas';}
 }
 
+async function generateTareaPDF(){
+  const monthVal=document.getElementById('pdf-tarea-month').value;
+  const [yyyy,mm]=monthVal.split('-');
+  const monthName=MONTHS[parseInt(mm)-1]+' '+yyyy;
+  const btn=document.querySelectorAll('#adm-tab-4 .btn-primary')[2];
+  btn.disabled=true;btn.textContent='Generando...';
+  try{
+    const rows=await dbSelectAllTareas();
+    const filtered=rows.filter(r=>{
+      const p=String(r.fecha).split('/');
+      return p.length===3&&p[2]===yyyy&&p[1]===mm;
+    }).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
+
+    if(!filtered.length){alert('No hay tareas de Rogelio en '+monthName);btn.disabled=false;btn.textContent='Generar PDF — Tareas';return;}
+
+    const tot=filtered.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+    let rowNum=1;
+    const rowsHTML=filtered.map(r=>{
+      const bg=rowNum++%2===0?'#fffbeb':'#ffffff';
+      return `<tr style="background:${bg};"><td style="padding:8px 12px;">${fmtLabel(r.fecha)}</td><td style="padding:8px 12px;">${r.descripcion}</td><td style="padding:8px 12px;text-align:center;font-weight:700;color:#b45309;">${parseFloat(r.importe).toFixed(2).replace('.',',')} €</td><td style="padding:8px 12px;font-size:12px;color:#666;">${r.timestamp||''}</td></tr>`;
+    }).join('');
+
+    const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Tareas Extra - Rogelio - ${monthName}</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:40px;color:#1a1a2e;font-size:14px;}
+  h1{font-size:22px;margin-bottom:4px;}
+  .sub{color:#666;font-size:13px;margin-bottom:24px;}
+  .summary{display:flex;gap:20px;margin-bottom:24px;}
+  .card{background:#fffbeb;border-radius:8px;padding:14px 20px;flex:1;border:1px solid #fcd34d;}
+  .card .label{font-size:11px;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;}
+  .card .value{font-size:22px;font-weight:700;color:#b45309;margin-top:4px;}
+  table{width:100%;border-collapse:collapse;}
+  th{background:#b45309;color:#fff;padding:10px 12px;text-align:left;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;}
+  td{border-bottom:1px solid #fef3c7;font-size:13px;}
+  .footer{margin-top:32px;font-size:11px;color:#999;text-align:center;border-top:1px solid #eee;padding-top:12px;}
+  @media print{body{margin:20px;}}
+</style></head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+  <div><h1>Tareas Extra — Rogelio</h1><div class="sub">${monthName}</div></div>
+  <div style="font-size:12px;color:#999;">Generado: ${new Date().toLocaleString('es-ES')}</div>
+</div>
+<div class="summary">
+  <div class="card"><div class="label">Total importe</div><div class="value">${tot.toFixed(2).replace('.',',')} €</div></div>
+  <div class="card"><div class="label">Nº de tareas</div><div class="value">${filtered.length}</div></div>
+</div>
+<table>
+  <thead><tr><th>Fecha</th><th>Descripción</th><th>Importe</th><th>Registrado</th></tr></thead>
+  <tbody>${rowsHTML}</tbody>
+</table>
+<div class="footer">Horas Extra App · Tareas Extra · Rogelio · ${monthName}</div>
+</body></html>`;
+
+    const w=window.open('','_blank');w.document.write(html);w.document.close();w.focus();
+    setTimeout(()=>w.print(),500);
+  }catch(e){alert('Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Generar PDF — Tareas';}
+}
+
 async function loadAdminSummary(){
   const listEl=document.getElementById('adm-summary'),stEl=document.getElementById('adm-status-0');
   listEl.innerHTML='';stEl.style.display='flex';
@@ -834,7 +966,7 @@ function buildPDFTab(){
     const opt=document.createElement('option');opt.value=e.name;opt.textContent=e.name;empSel.appendChild(opt);
   });
   // Build month selectors (hours + diets)
-  ['pdf-month','pdf-diet-month'].forEach(id=>{
+  ['pdf-month','pdf-diet-month','pdf-tarea-month'].forEach(id=>{
     const mSel=document.getElementById(id);mSel.innerHTML='';
     const today=new Date();
     for(let i=0;i<18;i++){
@@ -957,6 +1089,20 @@ function buildDeleteTab(){
   document.getElementById('del-diet-month-preview').style.display='none';
   document.getElementById('del-diet-month-btn').style.display='none';
   document.getElementById('del-diet-status').style.display='none';
+  // Tarea month selector
+  const tMSel=document.getElementById('del-tarea-month-sel');tMSel.innerHTML='';
+  const todayT=new Date();
+  for(let i=0;i<18;i++){
+    const d=new Date(todayT.getFullYear(),todayT.getMonth()-i,1);
+    const val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const opt=document.createElement('option');opt.value=val;
+    opt.textContent=MONTHS[d.getMonth()]+' '+d.getFullYear();
+    if(i===0)opt.selected=true;tMSel.appendChild(opt);
+  }
+  loadDelTareaRecords();
+  document.getElementById('del-tarea-month-preview').style.display='none';
+  document.getElementById('del-tarea-month-btn').style.display='none';
+  document.getElementById('del-tarea-status').style.display='none';
 }
 
 let delRecordsCache=[];
@@ -1304,6 +1450,240 @@ async function deleteDietMonth(){
 
 function showDietDelStatus(msg,type){
   const el=document.getElementById('del-diet-status');
+  el.style.display='block';el.textContent=msg;
+  if(type==='success'){el.style.background='var(--success-dim)';el.style.color='var(--success)';el.style.border='1px solid rgba(16,185,129,0.3)';}
+  else{el.style.background='var(--danger-dim)';el.style.color='var(--danger)';el.style.border='1px solid rgba(248,113,113,0.2)';}
+  setTimeout(()=>{el.style.display='none';},4000);
+}
+
+
+// ── TAREAS EXTRA (ROGELIO) ──────────────────────────────────────
+const API_TAREAS=SUPABASE_URL+'/rest/v1/tareas';
+
+async function dbInsertTarea(row){
+  const res=await fetch(API_TAREAS,{method:'POST',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(row)});
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+res.status);}
+}
+async function dbSelectTareas(emp){
+  const res=await fetch(API_TAREAS+'?empleado=eq.'+encodeURIComponent(emp)+'&order=id.desc',{headers:HDR});
+  if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+res.status);}
+  return res.json();
+}
+async function dbSelectAllTareas(){
+  const res=await fetch(API_TAREAS+'?order=id.desc&limit=1000',{headers:HDR});
+  if(!res.ok) return [];
+  return res.json();
+}
+
+// Tarea calendar
+let calTareaYear=0,calTareaMonth=0,calTareaSelected=null;
+
+function buildTareaCalendar(){
+  const today=new Date();
+  calTareaYear=today.getFullYear();calTareaMonth=today.getMonth();calTareaSelected=today;
+  renderTareaCalendar();setTareaCalSelected(today);
+}
+
+function renderTareaCalendar(){
+  const title=document.getElementById('cal-tarea-title');
+  const grid=document.getElementById('cal-tarea-grid');
+  title.textContent=MONTHS[calTareaMonth].charAt(0).toUpperCase()+MONTHS[calTareaMonth].slice(1)+' de '+calTareaYear;
+  grid.innerHTML='';
+  const first=new Date(calTareaYear,calTareaMonth,1);
+  const last=new Date(calTareaYear,calTareaMonth+1,0);
+  let startDow=first.getDay()-1;if(startDow<0)startDow=6;
+  for(let i=0;i<startDow;i++){const cell=document.createElement('div');cell.style.padding='6px 0';grid.appendChild(cell);}
+  const today=new Date();today.setHours(0,0,0,0);
+  for(let d=1;d<=last.getDate();d++){
+    const date=new Date(calTareaYear,calTareaMonth,d);
+    const cell=document.createElement('div');cell.textContent=d;
+    const isToday=date.getTime()===today.getTime();
+    const isSel=calTareaSelected&&date.getTime()===new Date(calTareaSelected.getFullYear(),calTareaSelected.getMonth(),calTareaSelected.getDate()).getTime();
+    cell.style.cssText='padding:6px 2px;border-radius:6px;font-size:13px;cursor:pointer;transition:background 0.1s;';
+    if(isSel){cell.style.background='var(--warn)';cell.style.color='#fff';cell.style.fontWeight='600';}
+    else if(isToday){cell.style.background='var(--warn-dim)';cell.style.color='var(--warn)';cell.style.fontWeight='600';}
+    else{cell.style.color='var(--text)';}
+    cell.onmouseover=function(){if(!isSel)this.style.background='var(--card2)';};
+    cell.onmouseout=function(){if(!isSel)this.style.background=isToday?'var(--warn-dim)':'';};
+    cell.onclick=function(){setTareaCalSelected(date);};
+    grid.appendChild(cell);
+  }
+}
+
+function setTareaCalSelected(date){
+  calTareaSelected=date;
+  const dd=String(date.getDate()).padStart(2,'0');
+  const mm=String(date.getMonth()+1).padStart(2,'0');
+  const yyyy=date.getFullYear();
+  document.getElementById('tarea-day').value=dd+'/'+mm+'/'+yyyy;
+  document.getElementById('cal-tarea-label').textContent=parseInt(dd)+' de '+MONTHS[date.getMonth()]+' de '+yyyy;
+  renderTareaCalendar();
+}
+
+function calTareaPrev(){calTareaMonth--;if(calTareaMonth<0){calTareaMonth=11;calTareaYear--;}renderTareaCalendar();}
+function calTareaNext(){
+  const today=new Date();const maxYear=today.getFullYear()+10;
+  calTareaMonth++;if(calTareaMonth>11){calTareaMonth=0;calTareaYear++;}
+  if(calTareaYear>maxYear){calTareaYear=maxYear;calTareaMonth=11;}
+  renderTareaCalendar();
+}
+
+function showTareaConfirm(){
+  const desc=document.getElementById('tarea-desc').value.trim();
+  const importe=parseFloat(document.getElementById('tarea-importe').value);
+  const day=document.getElementById('tarea-day').value;
+  if(!desc){alert('Escribe una descripción para la tarea');return;}
+  if(isNaN(importe)||importe<=0){alert('Introduce un importe válido');return;}
+  if(!day){alert('Selecciona una fecha');return;}
+  document.getElementById('tarea-confirm-msg').innerHTML=
+    '<strong style="color:var(--warn);">'+desc+'</strong><br>El día <strong>'+fmtLabel(day)+'</strong><br>Importe: <strong style="color:var(--warn);">'+importe.toFixed(2).replace('.',',')+' €</strong>';
+  document.getElementById('tarea-confirm-saving').style.display='none';
+  document.getElementById('tarea-confirm-err').style.display='none';
+  document.getElementById('tarea-confirm-btns').style.display='flex';
+  document.getElementById('tarea-btn-confirm').disabled=false;
+  show('screen-tarea-confirm');
+}
+
+function cancelTareaConfirm(){show('screen-employee');showTab(3);}
+
+async function doTareaConfirm(){
+  const desc=document.getElementById('tarea-desc').value.trim();
+  const importe=parseFloat(document.getElementById('tarea-importe').value);
+  const day=document.getElementById('tarea-day').value;
+  const now=new Date().toLocaleString('es-ES');
+  const empInfo=EMP_LIST.find(e=>e.key===currentUser);
+  document.getElementById('tarea-btn-confirm').disabled=true;
+  document.getElementById('tarea-confirm-btns').style.display='none';
+  document.getElementById('tarea-confirm-saving').style.display='flex';
+  try{
+    await dbInsertTarea({empleado:empInfo.name,fecha:day,descripcion:desc,importe:importe,timestamp:now});
+    document.getElementById('success-msg').innerHTML='<strong>'+desc+'</strong><br>'+fmtLabel(day)+' — <strong style="color:var(--warn);">'+importe.toFixed(2).replace('.',',')+' €</strong> ✓';
+    show('screen-success');
+  }catch(e){
+    document.getElementById('tarea-confirm-saving').style.display='none';
+    document.getElementById('tarea-confirm-err').style.display='block';
+    document.getElementById('tarea-confirm-err').textContent='Error: '+e.message;
+    document.getElementById('tarea-confirm-btns').style.display='flex';
+    document.getElementById('tarea-btn-confirm').disabled=false;
+  }
+}
+
+async function loadTareaHistory(){
+  const listEl=document.getElementById('tarea-history-list');
+  const stEl=document.getElementById('tarea-hist-status');
+  const totEl=document.getElementById('tarea-total');
+  listEl.innerHTML='';stEl.style.display='flex';totEl.textContent='— €';
+  try{
+    const empInfo=EMP_LIST.find(e=>e.key===currentUser);
+    const rows=await dbSelectTareas(empInfo.name);
+    stEl.style.display='none';
+    if(!rows.length){listEl.innerHTML='<div class="empty">Sin tareas registradas</div>';return;}
+    let tot=0;
+    listEl.innerHTML=rows.map(r=>{
+      tot+=parseFloat(r.importe)||0;
+      return '<div class="history-item" style="flex-direction:column;align-items:flex-start;gap:4px;">'+
+        '<div style="display:flex;justify-content:space-between;width:100%;align-items:center;">'+
+        '<span class="date">'+fmtLabel(r.fecha)+'</span>'+
+        '<span class="hours-pill" style="background:var(--warn-dim);color:var(--warn);border-color:rgba(245,158,11,0.3);">'+parseFloat(r.importe).toFixed(2).replace('.',',')+' €</span>'+
+        '</div>'+
+        '<div style="font-size:13px;color:var(--text);font-weight:500;">'+r.descripcion+'</div>'+
+        '</div>';
+    }).join('');
+    totEl.textContent=tot.toFixed(2).replace('.',',')+' €';
+  }catch(e){stEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';}
+}
+
+
+// ── BORRAR TAREAS ───────────────────────────────────────────────
+let delTareaCache=[];
+
+async function loadDelTareaRecords(){
+  const sel=document.getElementById('del-tarea-sel');
+  const btn=document.getElementById('del-tarea-btn');
+  const prev=document.getElementById('del-tarea-preview');
+  sel.innerHTML='<option value="">Cargando...</option>';
+  btn.disabled=true;prev.style.display='none';
+  try{
+    const rows=await dbSelectTareas('Rogelio');
+    delTareaCache=rows;
+    if(!rows.length){sel.innerHTML='<option value="">Sin tareas registradas</option>';return;}
+    sel.innerHTML='<option value="">— Elige una tarea —</option>';
+    rows.forEach(r=>{
+      const opt=document.createElement('option');opt.value=r.id;
+      opt.textContent=fmtLabel(r.fecha)+' — '+r.descripcion+' ('+parseFloat(r.importe).toFixed(2).replace('.',',')+' €)';
+      sel.appendChild(opt);
+    });
+    sel.onchange=()=>{
+      const id=sel.value;
+      if(!id){prev.style.display='none';btn.disabled=true;return;}
+      const r=delTareaCache.find(x=>String(x.id)===id);
+      if(!r)return;
+      prev.style.display='block';
+      prev.innerHTML='Se borrará: <strong>'+fmtLabel(r.fecha)+'</strong> — <strong>'+r.descripcion+'</strong> ('+parseFloat(r.importe).toFixed(2).replace('.',',')+' €)';
+      btn.disabled=false;
+    };
+  }catch(e){sel.innerHTML='<option value="">Error al cargar</option>';}
+}
+
+async function deleteTareaRecord(){
+  const id=document.getElementById('del-tarea-sel').value;
+  if(!id)return;
+  const btn=document.getElementById('del-tarea-btn');
+  if(!confirm('¿Seguro que quieres borrar esta tarea? Esta acción no se puede deshacer.'))return;
+  btn.disabled=true;btn.textContent='Borrando...';
+  try{
+    const res=await fetch(API_TAREAS+'?id=eq.'+id,{method:'DELETE',headers:HDR});
+    if(!res.ok)throw new Error('Error HTTP '+res.status);
+    showTareaDelStatus('Tarea borrada correctamente ✓','success');
+    await loadDelTareaRecords();
+  }catch(e){showTareaDelStatus('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='Borrar esta tarea';}
+}
+
+async function previewDeleteTareaMonth(){
+  const monthVal=document.getElementById('del-tarea-month-sel').value;
+  const [yyyy,mm]=monthVal.split('-');
+  const prev=document.getElementById('del-tarea-month-preview');
+  const btn=document.getElementById('del-tarea-month-btn');
+  prev.style.display='none';btn.style.display='none';
+  document.getElementById('del-tarea-status').style.display='none';
+  try{
+    const rows=await dbSelectAllTareas();
+    const filtered=rows.filter(r=>{
+      const p=String(r.fecha).split('/');
+      return p.length===3&&p[2]===yyyy&&p[1]===mm;
+    });
+    if(!filtered.length){prev.style.display='block';prev.textContent='No hay tareas de Rogelio en '+MONTHS[parseInt(mm)-1]+' '+yyyy;btn.style.display='none';return;}
+    const tot=filtered.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+    prev.style.display='block';
+    prev.innerHTML='Se borrarán <strong>'+filtered.length+' tarea'+(filtered.length!==1?'s':'')+'</strong> de <strong>Rogelio</strong> en <strong>'+MONTHS[parseInt(mm)-1]+' '+yyyy+'</strong> ('+tot.toFixed(2).replace('.',',')+' € en total).<br><br>'+
+      filtered.map(r=>'· '+fmtLabel(r.fecha)+' — '+r.descripcion+' ('+parseFloat(r.importe).toFixed(2).replace('.',',')+' €)').join('<br>');
+    btn.style.display='block';
+  }catch(e){prev.style.display='block';prev.textContent='Error: '+e.message;}
+}
+
+async function deleteTareaMonth(){
+  const monthVal=document.getElementById('del-tarea-month-sel').value;
+  const [yyyy,mm]=monthVal.split('-');
+  const monthName=MONTHS[parseInt(mm)-1]+' '+yyyy;
+  const btn=document.getElementById('del-tarea-month-btn');
+  if(!confirm('¿SEGURO? Se borrarán TODAS las tareas de Rogelio en '+monthName+'. Esta acción NO se puede deshacer.'))return;
+  btn.disabled=true;btn.textContent='Borrando...';
+  try{
+    const rows=await dbSelectAllTareas();
+    const ids=rows.filter(r=>{const p=String(r.fecha).split('/');return p.length===3&&p[2]===yyyy&&p[1]===mm;}).map(r=>r.id);
+    if(!ids.length){showTareaDelStatus('No se encontraron tareas','error');return;}
+    const res=await fetch(API_TAREAS+'?id=in.('+ids.join(',')+')',{method:'DELETE',headers:HDR});
+    if(!res.ok)throw new Error('Error HTTP '+res.status);
+    showTareaDelStatus('Borradas '+ids.length+' tarea'+(ids.length!==1?'s':'')+' de Rogelio en '+monthName+' ✓','success');
+    document.getElementById('del-tarea-month-preview').style.display='none';
+    btn.style.display='none';
+  }catch(e){showTareaDelStatus('Error: '+e.message,'error');}
+  finally{btn.disabled=false;btn.textContent='CONFIRMAR — Borrar tareas del mes';}
+}
+
+function showTareaDelStatus(msg,type){
+  const el=document.getElementById('del-tarea-status');
   el.style.display='block';el.textContent=msg;
   if(type==='success'){el.style.background='var(--success-dim)';el.style.color='var(--success)';el.style.border='1px solid rgba(16,185,129,0.3)';}
   else{el.style.background='var(--danger-dim)';el.style.color='var(--danger)';el.style.border='1px solid rgba(248,113,113,0.2)';}
