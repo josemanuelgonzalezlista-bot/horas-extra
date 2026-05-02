@@ -1020,6 +1020,7 @@ async function generatePDF(){
       });
     });
 
+    const importeTotal = tot * 12;
     const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Horas Extra - ${title} - ${monthName}</title>
 <style>
   body{font-family:Arial,sans-serif;margin:40px;color:#1a1a2e;font-size:14px;}
@@ -1029,6 +1030,8 @@ async function generatePDF(){
   .card{background:#f0f0ff;border-radius:8px;padding:14px 20px;flex:1;}
   .card .label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;}
   .card .value{font-size:20px;font-weight:700;color:#6c63ff;margin-top:4px;}
+  .card.importe{background:#faf0ff;border:2px solid #6c63ff;}
+  .card.importe .value{font-size:22px;color:#4c3aff;}
   table{width:100%;border-collapse:collapse;margin-top:8px;}
   th{background:#6c63ff;color:#fff;padding:10px 12px;text-align:left;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;}
   td{border-bottom:1px solid #eee;font-size:13px;}
@@ -1041,6 +1044,7 @@ async function generatePDF(){
 </div>
 <div class="summary">
   <div class="card"><div class="label">Total horas</div><div class="value">${tot.toFixed(1).replace('.',',')} h</div></div>
+  <div class="card importe"><div class="label">Total importe (12 €/h)</div><div class="value">${importeTotal.toFixed(2).replace('.',',')} €</div></div>
   <div class="card"><div class="label">Registros</div><div class="value">${filtered.length}</div></div>
   ${empVal!=='TODOS'?'':'<div class="card"><div class="label">Empleados</div><div class="value">'+Object.entries(groups).filter(([,v])=>v.length>0).length+'</div></div>'}
 </div>
