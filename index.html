@@ -592,7 +592,17 @@ function buildMonthFilter(){
 }
 
 function fmtLabel(v){if(!v)return'';const p=String(v).split('/');if(p.length!==3)return v;return parseInt(p[0])+' de '+MONTHS[parseInt(p[1])-1]+' de '+p[2];}
-function fmtH(h){const n=parseFloat(h);if(isNaN(n))return'0 h';const abs=Math.abs(n);const sign=n<0?'-':'';return sign+(abs%1===0?abs+' hora'+(abs!==1?'s':''):abs.toFixed(1).replace('.',',')+' horas');}
+function fmtH(h){
+  const n=parseFloat(h);
+  if(isNaN(n))return'0 h';
+  const abs=Math.abs(n);
+  const sign=n<0?'-':'';
+  if(abs%1===0) return sign+abs+' hora'+(abs!==1?'s':'');
+  // Show exact decimal: 3.25, 3.5, 3.75 etc - use up to 2 decimals, remove trailing zeros
+  const dec=parseFloat(abs.toFixed(2));
+  const str=dec.toString().replace('.',',');
+  return sign+str+' horas';
+}
 
 function doLogin(){
   const u=document.getElementById('login-user').value.trim().toUpperCase();
@@ -714,7 +724,7 @@ async function loadHistory(){
       const timeInfo=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'';
       return '<div class="history-item"><div><div class="date">'+fmtLabel(r.fecha)+'</div>'+(timeInfo?'<div class="time-info">'+timeInfo+'</div>':'')+'</div><span class="hours-pill">'+fmtH(r.horas)+'</span></div>';
     }).join('');
-    totEl.textContent=tot.toFixed(1).replace('.',',')+' h';
+    totEl.textContent=parseFloat(tot.toFixed(2)).toString().replace('.',',')+' h';
   }catch(e){stEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';}
 }
 
@@ -896,7 +906,7 @@ async function loadAdminMonth(){
     EMP_LIST.forEach(e=>{byEmp[e.name]={info:e,rows:[]};});
     filtered.forEach(r=>{if(byEmp[r.empleado])byEmp[r.empleado].rows.push(r);});
     const tot=filtered.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
-    totEl.textContent=tot.toFixed(1).replace('.',',')+' h';
+    totEl.textContent=parseFloat(tot.toFixed(2)).toString().replace('.',',')+' h';
     if(!filtered.length){listEl.innerHTML='<div class="empty">Sin registros ese mes</div>';return;}
     let html='';
     Object.values(byEmp).filter(g=>g.rows.length>0).forEach(g=>{
@@ -917,7 +927,7 @@ async function loadAdminAll(){
   try{
     const rows=await dbSelectAll();stEl.style.display='none';
     if(!rows.length){listEl.innerHTML='<div class="empty">Sin registros aún</div>';return;}
-    const tot=rows.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);totEl.textContent=tot.toFixed(1).replace('.',',')+' h';
+    const tot=rows.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);totEl.textContent=parseFloat(tot.toFixed(2)).toString().replace('.',',')+' h';
     listEl.innerHTML=rows.map(r=>{
       const info=EMP_LIST.find(e=>e.name===r.empleado);
       const timeInfo=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'';
@@ -1011,16 +1021,16 @@ async function generatePDF(){
     let rowNum=1;
     Object.entries(groups).filter(([,v])=>v.length>0).forEach(([emp,recs])=>{
       const empTot=recs.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
-      if(empVal==='TODOS') rowsHTML+=`<tr style="background:#f0f0ff;"><td colspan="4" style="padding:8px 12px;font-weight:700;font-size:13px;color:#1a1a2e;">${emp} — Total: ${empTot.toFixed(1).replace('.',',')} h</td></tr>`;
+      if(empVal==='TODOS') rowsHTML+=`<tr style="background:#f0f0ff;"><td colspan="4" style="padding:8px 12px;font-weight:700;font-size:13px;color:#1a1a2e;">${emp} — Total: ${parseFloat(empTot.toFixed(2)).toString().replace('.',',')} h</td></tr>`;
       recs.forEach(r=>{
         const ti=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'—';
         const bg=rowNum%2===0?'#f8f8ff':'#ffffff';
-        rowsHTML+=`<tr style="background:${bg};"><td style="padding:8px 12px;">${fmtLabel(r.fecha)}</td><td style="padding:8px 12px;">${ti}</td><td style="padding:8px 12px;text-align:center;font-weight:600;">${parseFloat(r.horas).toFixed(1).replace('.',',')} h</td><td style="padding:8px 12px;">${r.timestamp||''}</td></tr>`;
+        rowsHTML+=`<tr style="background:${bg};"><td style="padding:8px 12px;">${fmtLabel(r.fecha)}</td><td style="padding:8px 12px;">${ti}</td><td style="padding:8px 12px;text-align:center;font-weight:600;">${parseFloat(parseFloat(r.horas).toFixed(2)).toString().replace('.',',')} h</td><td style="padding:8px 12px;">${r.timestamp||''}</td></tr>`;
         rowNum++;
       });
     });
 
-    const importeTotal = tot * 12;
+    const importeTotal = Math.round(tot * 12 * 100) / 100;
     const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Horas Extra - ${title} - ${monthName}</title>
 <style>
   body{font-family:Arial,sans-serif;margin:40px;color:#1a1a2e;font-size:14px;}
@@ -1043,7 +1053,7 @@ async function generatePDF(){
   <div style="font-size:12px;color:#999;">Generado: ${new Date().toLocaleString('es-ES')}</div>
 </div>
 <div class="summary">
-  <div class="card"><div class="label">Total horas</div><div class="value">${tot.toFixed(1).replace('.',',')} h</div></div>
+  <div class="card"><div class="label">Total horas</div><div class="value">${parseFloat(tot.toFixed(2)).toString().replace('.',',')} h</div></div>
   <div class="card importe"><div class="label">Total importe (12 €/h)</div><div class="value">${importeTotal.toFixed(2).replace('.',',')} €</div></div>
   <div class="card"><div class="label">Registros</div><div class="value">${filtered.length}</div></div>
   ${empVal!=='TODOS'?'':'<div class="card"><div class="label">Empleados</div><div class="value">'+Object.entries(groups).filter(([,v])=>v.length>0).length+'</div></div>'}
