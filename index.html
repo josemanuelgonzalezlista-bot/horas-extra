@@ -307,6 +307,7 @@
       <div class="tab" id="adm-btn-3" onclick="showAdminTab(3)">Contraseñas</div>
       <div class="tab" id="adm-btn-4" onclick="showAdminTab(4)">PDF</div>
       <div class="tab" id="adm-btn-5" onclick="showAdminTab(5)">Borrar</div>
+      <div class="tab" id="adm-btn-6" onclick="showAdminTab(6)">Chiño</div>
     </div>
     <div id="adm-tab-0" class="content">
       <div class="section-title">Fijo mensual por empleado</div>
@@ -404,10 +405,39 @@
       <div id="del-tarea-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>
     </div>
 
+    <div id="adm-tab-6" class="content" style="display:none;">
+      <div class="section-title">Informe de Chiño</div>
+      <div style="display:flex;background:var(--bg2);border-bottom:1px solid var(--border);margin:0 -20px;">
+        <div class="tab active" id="chino-sub-0" onclick="showChinoSub(0)" style="flex:1;">Por mes</div>
+        <div class="tab" id="chino-sub-1" onclick="showChinoSub(1)" style="flex:1;">Por año</div>
+      </div>
+      <div id="chino-panel-0" style="display:flex;flex-direction:column;gap:14px;padding-top:4px;">
+        <div class="field"><label>Mes</label><select id="chino-month-sel" onchange="loadChinoMonth()"></select></div>
+        <div class="total-bar"><span>Total horas</span><strong id="chino-month-total">— h</strong></div>
+        <div class="total-bar" style="border-color:rgba(108,99,255,0.3);background:var(--accent-dim);"><span>Total importe (12€/h)</span><strong id="chino-month-importe" style="color:var(--accent2);">— €</strong></div>
+        <button class="btn btn-primary" onclick="generateChinoPDF('month')" style="width:100%;">Generar PDF — Este mes</button>
+        <div id="chino-month-status" class="status-row" style="display:none;"><div class="spinner"></div><span>Cargando...</span></div>
+        <div class="history-list" id="chino-month-list"></div>
+      </div>
+      <div id="chino-panel-1" style="display:none;flex-direction:column;gap:14px;padding-top:4px;">
+        <div class="field"><label>Año</label><select id="chino-year-sel" onchange="loadChinoYear()"></select></div>
+        <div class="total-bar"><span>Total horas año</span><strong id="chino-year-total">— h</strong></div>
+        <div class="total-bar" style="border-color:rgba(108,99,255,0.3);background:var(--accent-dim);"><span>Total importe (12€/h)</span><strong id="chino-year-importe" style="color:var(--accent2);">— €</strong></div>
+        <button class="btn btn-primary" onclick="generateChinoPDF('year')" style="width:100%;">Generar PDF — Este año</button>
+        <div id="chino-year-status" class="status-row" style="display:none;"><div class="spinner"></div><span>Cargando...</span></div>
+        <div class="history-list" id="chino-year-list"></div>
+      </div>
+    </div>
+
+  </div>
+
 <script>
 const SUPABASE_URL='https://eqzvhksyocljlgrrviic.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxenZoa3N5b2NsamxncnJ2aWljIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1NDcwMjksImV4cCI6MjA5MDEyMzAyOX0.RkBJw7SV4OW5xVxAx_3Fq1v2kI7GvLvgB6-8Ptjp_v8';
 const API=SUPABASE_URL+'/rest/v1/horas';
+const API_DIETS=SUPABASE_URL+'/rest/v1/dietas';
+const API_TAREAS=SUPABASE_URL+'/rest/v1/tareas';
+const API_FIJOS=SUPABASE_URL+'/rest/v1/fijos';
 const HDR={'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
 
 // Contraseñas guardadas en localStorage para poder cambiarlas
@@ -432,7 +462,7 @@ const EMP_LIST = [
   {key:'MARYCARMEN',name:'Marycarmen', initials:'MC'},
   {key:'CRISTINA',  name:'Cristina',   initials:'CR'},
   {key:'PATRICIA',  name:'Patricia',   initials:'PT'},
-  {key:'CHINO',     name:'Chiño',      initials:'CH'},
+  // Chiño has own tab - excluded from main EMP_LIST
 ];
 
 const MONTHS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -503,13 +533,14 @@ function showTab(idx){
 }
 
 function showAdminTab(idx){
-  [0,1,2,3,4,5].forEach(i=>{document.getElementById('adm-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('adm-btn-'+i).classList.toggle('active',i===idx);});
+  [0,1,2,3,4,5,6].forEach(i=>{document.getElementById('adm-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('adm-btn-'+i).classList.toggle('active',i===idx);});
   if(idx===0)loadAdminSummary();
   if(idx===1){buildMonthFilter();loadAdminMonth();}
   if(idx===2)loadAdminAll();
   if(idx===3)buildPassEditor();
   if(idx===4)buildPDFTab();
   if(idx===5)buildDeleteTab();
+  if(idx===6)buildChinoTab();
 }
 
 let calYear=0, calMonth=0, calSelected=null;
@@ -881,7 +912,8 @@ async function generateTareaPDF(){
   finally{btn.disabled=false;btn.textContent='Generar PDF — Tareas';}
 }
 
-function loadFijoInputs(){
+async function loadFijoInputs(){
+  await loadFijosFromDB();
   const fijoList=document.getElementById('fijo-list');
   const fijos=getFijos();
   fijoList.innerHTML=EMP_LIST.map(info=>`
@@ -897,21 +929,37 @@ function loadFijoInputs(){
     </div>`).join('');
 }
 
-function getFijos(){
-  try{return JSON.parse(localStorage.getItem('fijos_mensuales')||'{}');}catch(e){return{};}
+let _fijosCache={};
+
+async function loadFijosFromDB(){
+  try{
+    const res=await fetch(API_FIJOS+'?select=empleado_key,importe',{headers:HDR});
+    if(!res.ok)return;
+    const rows=await res.json();
+    _fijosCache={};
+    rows.forEach(r=>{_fijosCache[r.empleado_key]=parseFloat(r.importe)||0;});
+  }catch(e){console.error('loadFijos',e);}
 }
 
-function saveFijo(key){
+function getFijos(){return _fijosCache;}
+
+async function saveFijo(key){
   const val=parseFloat(document.getElementById('fijo-'+key).value)||0;
-  const fijos=getFijos();
-  fijos[key]=val;
-  localStorage.setItem('fijos_mensuales',JSON.stringify(fijos));
+  _fijosCache[key]=val;
+  try{
+    // upsert
+    await fetch(API_FIJOS,{
+      method:'POST',
+      headers:{...HDR,'Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({empleado_key:key,importe:val})
+    });
+  }catch(e){console.error('saveFijo',e);}
 }
 
 async function loadAdminSummary(){
   const listEl=document.getElementById('adm-summary'),stEl=document.getElementById('adm-status-0');
   listEl.innerHTML='';stEl.style.display='flex';
-  loadFijoInputs();
+  await loadFijoInputs();
   try{
     const [rows,dietAll]=await Promise.all([dbSelectAll(),dbSelectAllDiets()]);
     stEl.style.display='none';
@@ -1066,6 +1114,7 @@ async function generatePDF(){
 
     const importeTotal = Math.round(tot * 12 * 100) / 100;
     // Get fijo mensual for single employee or sum for all
+    await loadFijosFromDB();
     const fijos = getFijos();
     let fijoTotal = 0;
     if(empVal !== 'TODOS'){
@@ -1281,7 +1330,6 @@ function showDelStatus(msg,type){
 
 
 // ── DIETAS ─────────────────────────────────────────────────────
-const API_DIETS=SUPABASE_URL+'/rest/v1/dietas';
 
 async function dbInsertDiet(row){
   const res=await fetch(API_DIETS,{method:'POST',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(row)});
@@ -1522,7 +1570,6 @@ function showDietDelStatus(msg,type){
 
 
 // ── TAREAS EXTRA (ROGELIO) ──────────────────────────────────────
-const API_TAREAS=SUPABASE_URL+'/rest/v1/tareas';
 
 async function dbInsertTarea(row){
   const res=await fetch(API_TAREAS,{method:'POST',headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(row)});
@@ -1752,6 +1799,179 @@ function showTareaDelStatus(msg,type){
   if(type==='success'){el.style.background='var(--success-dim)';el.style.color='var(--success)';el.style.border='1px solid rgba(16,185,129,0.3)';}
   else{el.style.background='var(--danger-dim)';el.style.color='var(--danger)';el.style.border='1px solid rgba(248,113,113,0.2)';}
   setTimeout(()=>{el.style.display='none';},4000);
+}
+
+
+// ── CHIÑO PANEL ─────────────────────────────────────────────────
+function buildChinoTab(){
+  // Month selector
+  const mSel=document.getElementById('chino-month-sel');mSel.innerHTML='';
+  const today=new Date();
+  for(let i=0;i<24;i++){
+    const d=new Date(today.getFullYear(),today.getMonth()-i,1);
+    const val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const opt=document.createElement('option');opt.value=val;
+    opt.textContent=MONTHS[d.getMonth()]+' '+d.getFullYear();
+    if(i===0)opt.selected=true;mSel.appendChild(opt);
+  }
+  // Year selector
+  const ySel=document.getElementById('chino-year-sel');ySel.innerHTML='';
+  for(let y=today.getFullYear();y>=today.getFullYear()-5;y--){
+    const opt=document.createElement('option');opt.value=y;opt.textContent=y;ySel.appendChild(opt);
+  }
+  showChinoSub(0);
+  loadChinoMonth();
+}
+
+function showChinoSub(idx){
+  [0,1].forEach(i=>{
+    document.getElementById('chino-panel-'+i).style.display=i===idx?'flex':'none';
+    document.getElementById('chino-sub-'+i).classList.toggle('active',i===idx);
+  });
+  if(idx===1)loadChinoYear();
+}
+
+async function loadChinoMonth(){
+  const monthVal=document.getElementById('chino-month-sel').value;
+  const [yyyy,mm]=monthVal.split('-');
+  const listEl=document.getElementById('chino-month-list');
+  const stEl=document.getElementById('chino-month-status');
+  const totEl=document.getElementById('chino-month-total');
+  const impEl=document.getElementById('chino-month-importe');
+  listEl.innerHTML='';stEl.style.display='flex';
+  totEl.textContent='— h';impEl.textContent='— €';
+  try{
+    const rows=await dbSelectAll();
+    const filtered=rows.filter(r=>{
+      if(r.empleado!=='Chiño')return false;
+      const p=String(r.fecha).split('/');
+      return p.length===3&&p[2]===yyyy&&p[1]===mm;
+    }).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
+    stEl.style.display='none';
+    const tot=filtered.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
+    const imp=Math.round(tot*12*100)/100;
+    totEl.textContent=parseFloat(tot.toFixed(2)).toString().replace('.',',')+' h';
+    impEl.textContent=imp.toFixed(2).replace('.',',')+' €';
+    if(!filtered.length){listEl.innerHTML='<div class="empty">Sin registros ese mes</div>';return;}
+    listEl.innerHTML=filtered.map(r=>{
+      const ti=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'';
+      return '<div class="history-item"><div><div class="date">'+fmtLabel(r.fecha)+'</div>'+(ti?'<div class="time-info">'+ti+'</div>':'')+'</div><span class="hours-pill">'+fmtH(r.horas)+'</span></div>';
+    }).join('');
+  }catch(e){stEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';}
+}
+
+async function loadChinoYear(){
+  const yyyy=document.getElementById('chino-year-sel').value;
+  const listEl=document.getElementById('chino-year-list');
+  const stEl=document.getElementById('chino-year-status');
+  const totEl=document.getElementById('chino-year-total');
+  const impEl=document.getElementById('chino-year-importe');
+  listEl.innerHTML='';stEl.style.display='flex';
+  totEl.textContent='— h';impEl.textContent='— €';
+  try{
+    const rows=await dbSelectAll();
+    const filtered=rows.filter(r=>{
+      if(r.empleado!=='Chiño')return false;
+      const p=String(r.fecha).split('/');
+      return p.length===3&&p[2]===yyyy;
+    }).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
+    stEl.style.display='none';
+    const tot=filtered.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
+    const imp=Math.round(tot*12*100)/100;
+    totEl.textContent=parseFloat(tot.toFixed(2)).toString().replace('.',',')+' h';
+    impEl.textContent=imp.toFixed(2).replace('.',',')+' €';
+    if(!filtered.length){listEl.innerHTML='<div class="empty">Sin registros ese año</div>';return;}
+    // Group by month
+    const byMonth={};
+    filtered.forEach(r=>{
+      const p=String(r.fecha).split('/');
+      const key=p[2]+'-'+p[1];
+      if(!byMonth[key])byMonth[key]=[];
+      byMonth[key].push(r);
+    });
+    let html='';
+    Object.entries(byMonth).sort().forEach(([k,recs])=>{
+      const mm=k.split('-')[1];
+      const mTot=recs.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
+      const mImp=Math.round(mTot*12*100)/100;
+      html+='<div class="month-header">'+MONTHS[parseInt(mm)-1]+' '+yyyy+' — '+parseFloat(mTot.toFixed(2)).toString().replace('.',',')+' h · '+mImp.toFixed(2).replace('.',',')+' €</div>';
+      recs.forEach(r=>{
+        const ti=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'';
+        html+='<div class="history-item"><div><div class="date">'+fmtLabel(r.fecha)+'</div>'+(ti?'<div class="time-info">'+ti+'</div>':'')+'</div><span class="hours-pill">'+fmtH(r.horas)+'</span></div>';
+      });
+    });
+    listEl.innerHTML=html;
+  }catch(e){stEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';}
+}
+
+async function generateChinoPDF(mode){
+  const isYear=mode==='year';
+  const yyyy=isYear?document.getElementById('chino-year-sel').value:null;
+  const monthVal=isYear?null:document.getElementById('chino-month-sel').value;
+  const [yr,mm]=isYear?[yyyy,null]:monthVal.split('-');
+  const periodLabel=isYear?yr:MONTHS[parseInt(mm)-1]+' '+yr;
+  const btn=document.getElementById(isYear?'chino-panel-1':'chino-panel-0').querySelector('.btn-primary');
+  btn.disabled=true;btn.textContent='Generando...';
+  try{
+    const rows=await dbSelectAll();
+    const filtered=rows.filter(r=>{
+      if(r.empleado!=='Chiño')return false;
+      const p=String(r.fecha).split('/');
+      if(isYear)return p.length===3&&p[2]===yr;
+      return p.length===3&&p[2]===yr&&p[1]===mm;
+    }).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
+    if(!filtered.length){alert('No hay registros de Chiño en '+periodLabel);return;}
+    const tot=filtered.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
+    const imp=Math.round(tot*12*100)/100;
+    let rowsHTML='';let rowNum=1;
+    if(isYear){
+      const byMonth={};
+      filtered.forEach(r=>{const p=String(r.fecha).split('/');const k=p[2]+'-'+p[1];if(!byMonth[k])byMonth[k]=[];byMonth[k].push(r);});
+      Object.entries(byMonth).sort().forEach(([k,recs])=>{
+        const mmk=k.split('-')[1];
+        const mTot=recs.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
+        const mImp=Math.round(mTot*12*100)/100;
+        rowsHTML+=`<tr style="background:#e8e8ff;"><td colspan="4" style="padding:8px 12px;font-weight:700;font-size:13px;color:#3730a3;">${MONTHS[parseInt(mmk)-1]} ${yr} — ${parseFloat(mTot.toFixed(2)).toString().replace('.',',')} h · ${mImp.toFixed(2).replace('.',',')} €</td></tr>`;
+        recs.forEach(r=>{const bg=rowNum++%2===0?'#f0f0ff':'#fff';const ti=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'—';rowsHTML+=`<tr style="background:${bg};"><td style="padding:8px 12px;">${fmtLabel(r.fecha)}</td><td style="padding:8px 12px;">${ti}</td><td style="padding:8px 12px;text-align:center;font-weight:600;">${fmtH(r.horas)}</td><td style="padding:8px 12px;font-size:12px;color:#666;">${r.timestamp||''}</td></tr>`;});
+      });
+    } else {
+      filtered.forEach(r=>{const bg=rowNum++%2===0?'#f0f0ff':'#fff';const ti=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'—';rowsHTML+=`<tr style="background:${bg};"><td style="padding:8px 12px;">${fmtLabel(r.fecha)}</td><td style="padding:8px 12px;">${ti}</td><td style="padding:8px 12px;text-align:center;font-weight:600;">${fmtH(r.horas)}</td><td style="padding:8px 12px;font-size:12px;color:#666;">${r.timestamp||''}</td></tr>`;});
+    }
+    const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Chiño - Horas Extra - ${periodLabel}</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:40px;color:#1a1a2e;font-size:14px;}
+  h1{font-size:22px;margin-bottom:4px;}
+  .sub{color:#666;font-size:13px;margin-bottom:24px;}
+  .summary{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:24px;}
+  .card{background:#f0f0ff;border-radius:8px;padding:14px 20px;flex:1;min-width:130px;}
+  .card .label{font-size:11px;color:#3730a3;text-transform:uppercase;letter-spacing:0.5px;}
+  .card .value{font-size:20px;font-weight:700;color:#6c63ff;margin-top:4px;}
+  .card.imp{background:#faf0ff;border:2px solid #6c63ff;}
+  .card.imp .value{color:#4c3aff;}
+  table{width:100%;border-collapse:collapse;}
+  th{background:#6c63ff;color:#fff;padding:10px 12px;text-align:left;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;}
+  td{border-bottom:1px solid #eee;font-size:13px;}
+  .footer{margin-top:32px;font-size:11px;color:#999;text-align:center;border-top:1px solid #eee;padding-top:12px;}
+  @media print{body{margin:20px;}}
+</style></head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;">
+  <div><h1>Informe Horas Extra — Chiño</h1><div class="sub">${periodLabel}</div></div>
+  <div style="font-size:12px;color:#999;">Generado: ${new Date().toLocaleString('es-ES')}</div>
+</div>
+<div class="summary">
+  <div class="card"><div class="label">Total horas</div><div class="value">${parseFloat(tot.toFixed(2)).toString().replace('.',',')} h</div></div>
+  <div class="card imp"><div class="label">Total importe (12€/h)</div><div class="value">${imp.toFixed(2).replace('.',',')} €</div></div>
+  <div class="card"><div class="label">Registros</div><div class="value">${filtered.length}</div></div>
+</div>
+<table>
+  <thead><tr><th>Fecha</th><th>Horario</th><th>Horas</th><th>Registrado</th></tr></thead>
+  <tbody>${rowsHTML}</tbody>
+</table>
+<div class="footer">Horas Extra App · Chiño · ${periodLabel}</div>
+</body></html>`;
+    const w=window.open('','_blank');w.document.write(html);w.document.close();w.focus();setTimeout(()=>w.print(),500);
+  }catch(e){alert('Error: '+e.message);}
+  finally{btn.disabled=false;btn.textContent='Generar PDF — Este '+(isYear?'año':'mes');}
 }
 
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus();});
