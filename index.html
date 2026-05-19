@@ -366,11 +366,13 @@
     <div id="t-tab-0" class="content">
       <div class="field"><label>Importe (€)</label>
         <input id="t-importe" class="t-importe-big" inputmode="decimal" placeholder="0,00"></div>
+      <div class="field" style="margin-top:14px;"><label>Fecha del traspaso</label>
+        <input id="t-fecha" type="date"></div>
       <div class="field" style="margin-top:14px;"><label>Concepto</label>
         <input id="t-concepto" type="text" placeholder="Ej: Factura Chocolates Mariño"></div>
       <div class="field" style="margin-top:14px;"><label>COLLO DE:</label>
         <select id="t-de"></select></div>
-      <div class="field" style="margin-top:14px;"><label>TIÑA QUE PAGAR:</label>
+      <div class="field" style="margin-top:14px;"><label>TIÑA QUE PAGAR: <span style="color:var(--text2);font-weight:400;">(opcional)</span></label>
         <select id="t-para"></select></div>
       <div id="t-msg" style="display:none;padding:12px;border-radius:var(--radius-sm);margin-top:14px;font-size:14px;text-align:center;"></div>
       <button id="t-btn-guardar" class="btn btn-primary" style="width:100%;margin-top:18px;" onclick="tGuardar()">Guardar traspaso</button>
@@ -951,12 +953,23 @@ const PAGADO_TAG='[PAGADO] ';
 function tEsPagado(r){return String(r.concepto||'').startsWith(PAGADO_TAG);}
 function tConceptoLimpio(r){return tEsPagado(r)?String(r.concepto).slice(PAGADO_TAG.length):r.concepto;}
 function tFillSelects(){
-  ['t-de','t-para'].forEach(id=>{
-    const sel=document.getElementById(id);
-    if(!sel)return;
-    sel.innerHTML='<option value="">— elegir —</option>'+
+  const selDe=document.getElementById('t-de');
+  if(selDe){
+    selDe.innerHTML='<option value="">— elegir —</option>'+
       TRASPASO_PARTS.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
-  });
+  }
+  const selPara=document.getElementById('t-para');
+  if(selPara){
+    selPara.innerHTML='<option value="">— elegir —</option>'+
+      '<option value="__NADIE__">(nadie — solo apunte, para CAIXA CAMBIO)</option>'+
+      TRASPASO_PARTS.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+  }
+  // Inicializar la fecha a hoy si está vacía
+  const f=document.getElementById('t-fecha');
+  if(f&&!f.value){
+    const n=new Date();
+    f.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+  }
 }
 function tMsg(txt,tipo){
   const m=document.getElementById('t-msg');
@@ -967,15 +980,27 @@ function tMsg(txt,tipo){
 async function tGuardar(){
   const imp=parseFloat(String(document.getElementById('t-importe').value).replace(',','.'));
   const concepto=document.getElementById('t-concepto').value.trim();
+  const fInp=document.getElementById('t-fecha').value; // yyyy-mm-dd
   const de=document.getElementById('t-de').value;
-  const para=document.getElementById('t-para').value;
+  let para=document.getElementById('t-para').value;
   document.getElementById('t-msg').style.display='none';
   if(!imp||imp<=0){tMsg('Pon un importe válido','err');return;}
+  if(!fInp){tMsg('Elige la fecha del traspaso','err');return;}
   if(!concepto){tMsg('Escribe un concepto','err');return;}
-  if(!de||!para){tMsg('Elige las dos personas','err');return;}
-  if(de===para){tMsg('No puede ser la misma persona','err');return;}
+  if(!de){tMsg('Elige quién pone el dinero (COLLO DE:)','err');return;}
+  // "TIÑA QUE PAGAR" es opcional SOLO si COLLO DE es CAIXA CAMBIO.
+  // En ese caso queda como un simple apunte que no genera deuda.
+  if(!para){
+    if(de==='CAIXA CAMBIO'){
+      para='__NADIE__'; // apunte sin deuda
+    }else{
+      tMsg('Elige quién tiene que pagar (TIÑA QUE PAGAR:)','err');return;
+    }
+  }
+  if(para!=='__NADIE__'&&de===para){tMsg('No puede ser la misma persona','err');return;}
+  const p=fInp.split('-'); // [yyyy,mm,dd]
+  const fecha=p[2]+'/'+p[1]+'/'+p[0];
   const now=new Date();
-  const fecha=String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
   const hora=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   const btn=document.getElementById('t-btn-guardar');
   btn.disabled=true;btn.textContent='Guardando...';
@@ -985,7 +1010,11 @@ async function tGuardar(){
     document.getElementById('t-concepto').value='';
     document.getElementById('t-de').value='';
     document.getElementById('t-para').value='';
-    tMsg(de+' puso '+imp.toFixed(2).replace('.',',')+'€ — '+para+' se lo debe','ok');
+    if(para==='__NADIE__'){
+      tMsg('Apunte de '+de+' guardado ('+imp.toFixed(2).replace('.',',')+'€) — sin deuda','ok');
+    }else{
+      tMsg(de+' puso '+imp.toFixed(2).replace('.',',')+'€ — '+para+' se lo debe','ok');
+    }
     tRenderTabla();
   }catch(e){tMsg('Error: '+e.message,'err');}
   btn.disabled=false;btn.textContent='Guardar traspaso';
@@ -1006,10 +1035,14 @@ function tStamp(r){
 // a su valor; a partir de ahí se siguen sumando los movimientos siguientes.
 function tCalcFilas(rows){
   const CAIXA='CAIXA CAMBIO';
-  // El saldo se acumula en el ORDEN REAL en que se introdujeron los apuntes
-  // (id ascendente). Es el único orden fiable y secuencial: cada apunte
-  // ocurre después del anterior. La fecha/hora es solo informativa.
-  const ordenadas=[...rows].sort((a,b)=>(a.id||0)-(b.id||0));
+  // El saldo se acumula por FECHA (más antiguo primero), igual que se
+  // muestra en la tabla. Si dos apuntes tienen la misma fecha, se respeta
+  // el orden en que se introdujeron (id ascendente).
+  const ordenadas=[...rows].sort((a,b)=>{
+    const d=tStamp(a)-tStamp(b);
+    if(d!==0)return d;
+    return (a.id||0)-(b.id||0);
+  });
   let run=0;
   return ordenadas.map(r=>{
     const esManual=(r.de==='__SALDO__');
@@ -1042,6 +1075,7 @@ async function tRenderTabla(){
     const debe={}; // debe["Luis|Pepe"] = importe que Luis debe a Pepe
     rows.forEach(r=>{
       if(r.de==='__SALDO__')return; // los apuntes manuales no entran en saldos/deudas
+      if(r.para==='__NADIE__')return; // apunte sin deuda (caso CAIXA CAMBIO)
       const imp=parseFloat(r.importe)||0;
       if(saldo[r.de]===undefined)saldo[r.de]=0;
       if(saldo[r.para]===undefined)saldo[r.para]=0;
@@ -1076,16 +1110,24 @@ async function tRenderTabla(){
         if(pagado&&!c.esManual)concepto+=' <span style="color:var(--success);font-size:10px;">✓ pagado</span>';
         const sCol=c.saldo>0.001?'var(--success)':c.saldo<-0.001?'var(--danger)':'var(--text2)';
         const saldoCell='<td style="font-weight:600;color:'+sCol+'">'+c.saldo.toFixed(2).replace('.',',')+'€</td>';
-        return '<tr><td>'+r.fecha+'</td><td class="t-c-concepto">'+concepto+'</td>'+
-          celda+saldoCell+'<td><button class="t-del" onclick="tBorrar('+r.id+')">✕</button></td></tr>';
+        return {
+          ts:tStamp(r), id:(r.id||0),
+          html:'<tr><td>'+r.fecha+'</td><td class="t-c-concepto">'+concepto+'</td>'+
+            celda+saldoCell+'<td><button class="t-del" onclick="tBorrar('+r.id+')">✕</button></td></tr>'
+        };
       });
-      // Mostrar más recientes arriba (el saldo ya está calculado en orden correcto)
-      const bodyArr=filas.slice().reverse();
+      // Visualización: ordenada por FECHA, más antiguo ARRIBA y más reciente ABAJO.
+      // (El saldo de cada fila ya se calculó en orden de introducción y viaja con ella.)
+      const ordenVista=filas.slice().sort((a,b)=>{
+        const d=a.ts-b.ts;
+        return d!==0?d:(a.id-b.id);
+      });
+      const bodyArr=ordenVista.map(f=>f.html);
       let th='<tr><th>Fecha</th><th>Concepto</th><th>'+CAIXA+'</th><th>Saldo</th><th></th></tr>';
       let body=bodyArr.join('');
       if(!rows.length)body='<tr><td colspan="99" style="text-align:center;color:var(--text2);padding:16px;">Sin traspasos aún</td></tr>';
       histEl.innerHTML='<div style="max-height:60vh;overflow-y:auto;"><table class="t-table">'+th+body+'</table></div>';
-      window._tLastRows=calc.map(c=>c.row); // para el PDF (orden cronológico)
+      window._tLastRows=calc.map(c=>c.row); // para el PDF (orden de introducción)
     }
     if(saldoEl){ saldoEl.innerHTML=''; } // sección "saldo de cada persona" eliminada
     if(deudaEl){
@@ -1095,6 +1137,7 @@ async function tRenderTabla(){
       const grupos={}; // "Luis|Pepe" -> [{id,concepto,importe,fecha}]
       rows.forEach(r=>{
         if(r.de==='__SALDO__')return;
+        if(r.para==='__NADIE__')return; // apunte sin deuda (caso CAIXA CAMBIO)
         if(tEsPagado(r))return;
         const imp=parseFloat(r.importe)||0;
         if(imp<=0)return;
