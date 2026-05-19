@@ -93,6 +93,14 @@
     .t-importe-big{width:100%;font-size:38px;font-weight:600;text-align:center;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:20px;font-family:var(--mono);}
     .t-importe-big::placeholder{color:var(--text3);}
     .t-part-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;font-size:14px;}
+    /* ===== PANTALLA SELECCIÓN ===== */
+    .choose-big{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;width:100%;padding:38px 20px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius);color:var(--text);cursor:pointer;font-family:var(--font);transition:transform 0.12s,box-shadow 0.12s;box-shadow:0 4px 20px rgba(108,99,255,0.18);}
+    .choose-big:active{transform:scale(0.98);}
+    .choose-big.choose-alt{background:var(--success-dim);border-color:var(--success);box-shadow:0 4px 20px rgba(16,185,129,0.18);}
+    .choose-ico{font-size:42px;line-height:1;color:var(--accent2);}
+    .choose-big.choose-alt .choose-ico{color:var(--success);}
+    .choose-txt{font-size:24px;font-weight:600;letter-spacing:-0.5px;}
+    .choose-sub{font-size:13px;color:var(--text2);}
   </style>
 </head>
 <body>
@@ -114,12 +122,34 @@
     </div>
   </div>
 
+  <!-- SELECCIÓN: TRASPASOS / HORAS -->
+  <div class="screen" id="screen-choose">
+    <div class="header">
+      <div class="header-top">
+        <div><h1 id="choose-name">Hola</h1><div class="sub">¿Qué quieres hacer?</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div class="avatar" id="choose-avatar"></div><button class="logout-btn" onclick="doLogout()">Salir</button></div>
+      </div>
+    </div>
+    <div class="content" style="justify-content:center;gap:18px;">
+      <button class="choose-big" onclick="chooseGoTraspasos()">
+        <span class="choose-ico">€</span>
+        <span class="choose-txt">Traspasos</span>
+        <span class="choose-sub">Cuentas entre personas</span>
+      </button>
+      <button class="choose-big choose-alt" onclick="chooseGoHoras()">
+        <span class="choose-ico">⏱</span>
+        <span class="choose-txt">Horas</span>
+        <span class="choose-sub">Registro de horas extra</span>
+      </button>
+    </div>
+  </div>
+
   <!-- EMPLEADO -->
   <div class="screen" id="screen-employee">
     <div class="header">
       <div class="header-top">
         <div><h1 id="emp-name">Empleado</h1><div class="sub">Horas extra</div></div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div class="avatar" id="emp-avatar"></div><button class="logout-btn" onclick="doLogout()">Salir</button><button class="logout-btn" id="emp-traspasos-btn" onclick="tAbrirModulo()" style="display:none;background:var(--accent-dim);color:var(--accent2);border-color:var(--accent);">Traspasos</button></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div class="avatar" id="emp-avatar"></div><button class="logout-btn" onclick="empSalir()">Salir</button><button class="logout-btn" id="emp-traspasos-btn" onclick="tAbrirModulo()" style="display:none;background:var(--accent-dim);color:var(--accent2);border-color:var(--accent);">Traspasos</button></div>
       </div>
     </div>
     <div class="tabs">
@@ -506,7 +536,7 @@ const API_TAREAS=SUPABASE_URL+'/rest/v1/tareas';
 const API_FIJOS=SUPABASE_URL+'/rest/v1/fijos';
 const API_TRASPASOS=SUPABASE_URL+'/rest/v1/traspasos';
 const API_TCFG=SUPABASE_URL+'/rest/v1/traspasos_config';
-let TRASPASO_PARTS=[];                       // ["Pepe","Luis",...] participantes
+let TRASPASO_PARTS=['ESTASER','GASOLEOS','CAIXA CAMBIO','JOSE','NICOL','MARYCARMEN','SINDO']; // participantes por defecto
 let TRASPASO_ACCESO=['ADMIN','PATRICIA'];    // keys de usuarios con acceso al módulo
 const HDR={'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
 
@@ -725,28 +755,58 @@ async function doLogin(){
   await tLoadConfig();
   if(isAdmin){show('screen-admin');loadAdminSummary();}
   else{
-    buildDaySelector();
-    buildTimeOptions('sel-start','07:00');
-    buildTimeOptions('sel-end','08:00');
-    updateHoursPreview();
-    document.getElementById('sel-start').onchange=updateHoursPreview;
-    document.getElementById('sel-end').onchange=updateHoursPreview;
-    document.getElementById('emp-avatar').textContent=emp.initials;
-    document.getElementById('emp-name').textContent=emp.name;
-    // Show Pascual toggle
-    const tog=document.getElementById('pascual-toggle');
-    if(u==='PASCUAL'||u==='ROGELIO'){tog.style.display='block';setPascualMode('extra');}
-    else{tog.style.display='none';window._pascualMode='extra';}
-    // Show diet tab for MARCELINO and PASCUAL
-    const dietTab=document.getElementById('tab-btn-2');
-    dietTab.style.display=['MARCELINO','PASCUAL'].includes(u)?'block':'none';
-    // Show tareas tab for ROGELIO
-    const tareaTab=document.getElementById('tab-btn-3');
-    tareaTab.style.display=u==='ROGELIO'?'block':'none';
-    // Botón de acceso al módulo de Traspasos (si el usuario tiene acceso)
-    const tBtn=document.getElementById('emp-traspasos-btn');
-    if(tBtn)tBtn.style.display=TRASPASO_ACCESO.includes(u)?'block':'none';
-    showTab(0);show('screen-employee');
+    window._empCtx=emp;
+    if(TRASPASO_ACCESO.includes(u)){
+      // Tiene Traspasos -> mostrar pantalla de elección
+      document.getElementById('choose-name').textContent='Hola, '+emp.name;
+      document.getElementById('choose-avatar').textContent=emp.initials;
+      show('screen-choose');
+    }else{
+      // Sin Traspasos -> directo a Horas
+      setupHorasScreen(emp,u);
+    }
+  }
+}
+
+// Prepara y muestra la pantalla de registro de Horas para un empleado
+function setupHorasScreen(emp,u){
+  buildDaySelector();
+  buildTimeOptions('sel-start','07:00');
+  buildTimeOptions('sel-end','08:00');
+  updateHoursPreview();
+  document.getElementById('sel-start').onchange=updateHoursPreview;
+  document.getElementById('sel-end').onchange=updateHoursPreview;
+  document.getElementById('emp-avatar').textContent=emp.initials;
+  document.getElementById('emp-name').textContent=emp.name;
+  // Show Pascual toggle
+  const tog=document.getElementById('pascual-toggle');
+  if(u==='PASCUAL'||u==='ROGELIO'){tog.style.display='block';setPascualMode('extra');}
+  else{tog.style.display='none';window._pascualMode='extra';}
+  // Show diet tab for MARCELINO and PASCUAL
+  const dietTab=document.getElementById('tab-btn-2');
+  dietTab.style.display=['MARCELINO','PASCUAL'].includes(u)?'block':'none';
+  // Show tareas tab for ROGELIO
+  const tareaTab=document.getElementById('tab-btn-3');
+  tareaTab.style.display=u==='ROGELIO'?'block':'none';
+  // Botón de acceso al módulo de Traspasos (si el usuario tiene acceso)
+  const tBtn=document.getElementById('emp-traspasos-btn');
+  if(tBtn)tBtn.style.display=TRASPASO_ACCESO.includes(u)?'block':'none';
+  showTab(0);show('screen-employee');
+}
+
+// Botones de la pantalla de elección
+function chooseGoTraspasos(){ tAbrirModulo(); }
+function chooseGoHoras(){
+  const emp=window._empCtx||EMP_LIST.find(e=>e.key===currentUser);
+  if(emp)setupHorasScreen(emp,currentUser);
+}
+// Salir desde la pantalla de Horas: si el empleado tiene Traspasos,
+// vuelve a la pantalla de elección; si no, cierra sesión.
+function empSalir(){
+  if(currentUser&&currentUser!=='ADMIN'&&TRASPASO_ACCESO.includes(currentUser)){
+    show('screen-choose');
+  }else{
+    doLogout();
   }
 }
 
@@ -798,13 +858,25 @@ async function dbSelectAll(){
    MÓDULO TRASPASOS  (tipo Splitwise local)
    ============================================================ */
 async function tLoadConfig(){
+  const DEFAULT_PARTS=['ESTASER','GASOLEOS','CAIXA CAMBIO','JOSE','NICOL','MARYCARMEN','SINDO'];
   try{
     const r=await fetch(API_TCFG+'?id=eq.1',{headers:HDR});
     if(r.ok){
       const d=await r.json();
       if(d&&d[0]){
-        TRASPASO_PARTS=Array.isArray(d[0].participantes)?d[0].participantes:[];
+        const remoteParts=Array.isArray(d[0].participantes)?d[0].participantes:[];
         TRASPASO_ACCESO=Array.isArray(d[0].usuarios_acceso)?d[0].usuarios_acceso:['ADMIN','PATRICIA'];
+        if(remoteParts.length>0){
+          TRASPASO_PARTS=remoteParts;
+        }else{
+          // Config sin participantes -> sembrar los por defecto y guardarlos
+          TRASPASO_PARTS=[...DEFAULT_PARTS];
+          try{await tSaveConfig();}catch(e){console.warn('seed parts',e);}
+        }
+      }else{
+        // No hay fila de config -> usar por defecto e intentar crearla
+        TRASPASO_PARTS=[...DEFAULT_PARTS];
+        try{await tSaveConfig();}catch(e){console.warn('init cfg',e);}
       }
     }
   }catch(e){console.warn('tLoadConfig',e);}
@@ -892,15 +964,20 @@ async function tRenderTabla(){
       if(debe[k2]){const min=Math.min(debe[k],debe[k2]);debe[k]-=min;debe[k2]-=min;}
     });
     if(histEl){
-      let th='<tr><th>Fecha</th><th>Hora</th><th>Concepto</th>'+
-        TRASPASO_PARTS.map(p=>'<th>'+p+'</th>').join('')+'<th></th></tr>';
+      // La pestaña Tabla muestra SOLO la columna "CAIXA CAMBIO".
+      // El valor mostrado es el SIGNO CONTRARIO al efecto interno:
+      //   - Si CAIXA CAMBIO es quien pone (de)  -> internamente +importe, se muestra -importe
+      //   - Si CAIXA CAMBIO es quien debe (para) -> internamente -importe, se muestra +importe
+      const CAIXA='CAIXA CAMBIO';
+      let th='<tr><th>Fecha</th><th>Hora</th><th>Concepto</th><th>'+CAIXA+'</th><th></th></tr>';
       let body=rows.map(r=>{
-        const cols=TRASPASO_PARTS.map(p=>{
-          if(p===r.de)return '<td style="color:var(--success)">+'+(+r.importe).toFixed(2).replace('.',',')+'</td>';
-          if(p===r.para)return '<td style="color:var(--danger)">-'+(+r.importe).toFixed(2).replace('.',',')+'</td>';
-          return '<td></td>';
-        }).join('');
-        return '<tr><td>'+r.fecha+'</td><td>'+r.hora+'</td><td>'+r.concepto+'</td>'+cols+
+        let celda='<td></td>';
+        if(r.de===CAIXA){
+          celda='<td style="color:var(--danger)">-'+(+r.importe).toFixed(2).replace('.',',')+'</td>';
+        }else if(r.para===CAIXA){
+          celda='<td style="color:var(--success)">+'+(+r.importe).toFixed(2).replace('.',',')+'</td>';
+        }
+        return '<tr><td>'+r.fecha+'</td><td>'+r.hora+'</td><td>'+r.concepto+'</td>'+celda+
           '<td><button class="t-del" onclick="tBorrar('+r.id+')">✕</button></td></tr>';
       }).join('');
       if(!rows.length)body='<tr><td colspan="99" style="text-align:center;color:var(--text2);padding:16px;">Sin traspasos aún</td></tr>';
@@ -947,9 +1024,10 @@ function tAbrirModulo(){
   tFillSelects();
 }
 function tSalir(){
-  // Si es admin, vuelve al panel admin; si no, cierra sesión
+  // Admin -> vuelve al panel admin
+  // Empleado -> vuelve a la pantalla de elección (Traspasos / Horas)
   if(currentUser==='ADMIN'){show('screen-admin');showAdminTab(7);}
-  else doLogout();
+  else show('screen-choose');
 }
 /* ---- ADMIN: participantes y accesos ---- */
 function tAdmMsg(txt,tipo){
