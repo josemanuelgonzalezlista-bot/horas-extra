@@ -993,6 +993,41 @@ function tStamp(r){
   const hh=+ph[0]||0, mm=+ph[1]||0;
   return new Date(y,m-1,d,hh,mm).getTime();
 }
+// Calcula, en orden cronológico, para cada apunte: el valor de la columna
+// "CAIXA CAMBIO" (cel/delta) y el SALDO acumulado.
+// REGLA: el saldo SIEMPRE suma exactamente lo que muestra la columna
+// Caixa Cambio (+ entra, - sale). Un apunte manual de saldo FIJA el saldo
+// a su valor; a partir de ahí se siguen sumando los movimientos siguientes.
+function tCalcFilas(rows){
+  const CAIXA='CAIXA CAMBIO';
+  const ordenadas=[...rows].sort((a,b)=>{
+    const d=tStamp(a)-tStamp(b);
+    if(d!==0)return d;
+    // misma fecha/hora: el apunte manual de saldo va PRIMERO (es el punto de partida)
+    const am=a.de==='__SALDO__'?0:1, bm=b.de==='__SALDO__'?0:1;
+    if(am!==bm)return am-bm;
+    return (a.id||0)-(b.id||0);
+  });
+  let run=0;
+  return ordenadas.map(r=>{
+    const esManual=(r.de==='__SALDO__');
+    let delta=0, tipo='none'; // 'none' | 'manual' | 'in' | 'out'
+    if(esManual){
+      run=parseFloat(r.importe)||0;   // fija el saldo
+      tipo='manual';
+    }else if(r.de===CAIXA){
+      delta=-(parseFloat(r.importe)||0); // sale dinero de caja -> negativo
+      run+=delta;
+      tipo='out';
+    }else if(r.para===CAIXA){
+      delta=+(parseFloat(r.importe)||0); // entra dinero en caja -> positivo
+      run+=delta;
+      tipo='in';
+    }
+    // si CAIXA no interviene, delta=0 y el saldo no cambia
+    return {row:r, delta:delta, saldo:run, tipo:tipo, esManual:esManual};
+  });
+}
 async function tRenderTabla(){
   const histEl=document.getElementById('t-historial');
   const saldoEl=document.getElementById('t-saldos');
@@ -1018,42 +1053,37 @@ async function tRenderTabla(){
     if(histEl){
       // Pestaña Tabla: columnas Fecha, Hora, Concepto, CAIXA CAMBIO, Saldo.
       // CAIXA CAMBIO se muestra con signo CONTRARIO al efecto interno:
-      //   - CAIXA es quien pone (de)  -> internamente +importe, se muestra -importe
-      //   - CAIXA es quien debe (para) -> internamente -importe, se muestra +importe
-      // Saldo = saldo acumulado de CAIXA CAMBIO, arrastrado fila a fila en
-      // orden cronológico. Un apunte manual FIJA el saldo a ese valor.
+      //   - CAIXA es quien pone (de)  -> sale dinero -> se muestra negativo
+      //   - CAIXA es quien debe (para) -> entra dinero -> se muestra positivo
+      // Saldo = suma exacta de la columna Caixa Cambio, arrastrada fila a
+      // fila en orden cronológico. Un apunte manual FIJA el saldo.
       const CAIXA='CAIXA CAMBIO';
-      const ordenadas=[...rows].sort((a,b)=>tStamp(a)-tStamp(b));
-      let run=0; // saldo acumulado
-      const filas=ordenadas.map(r=>{
+      const calc=tCalcFilas(rows);
+      const filas=calc.map(c=>{
+        const r=c.row;
         const pagado=tEsPagado(r);
-        let concepto=tConceptoLimpio(r), celda='<td></td>', delta=0, esManual=(r.de==='__SALDO__');
-        if(esManual){
-          run=parseFloat(r.importe)||0;            // el apunte fija el saldo
+        let concepto=tConceptoLimpio(r), celda='<td></td>';
+        if(c.esManual){
           concepto='⚑ Saldo declarado';
           celda='<td style="color:var(--text2)">—</td>';
-        }else if(r.de===CAIXA){
-          delta=-(parseFloat(r.importe)||0);       // sale dinero de caja
-          celda='<td style="color:var(--danger)">'+delta.toFixed(2).replace('.',',')+'</td>';
-          run+=delta;
-        }else if(r.para===CAIXA){
-          delta=+(parseFloat(r.importe)||0);       // entra dinero en caja
-          celda='<td style="color:var(--success)">+'+delta.toFixed(2).replace('.',',')+'</td>';
-          run+=delta;
+        }else if(c.tipo==='out'){
+          celda='<td style="color:var(--danger)">'+c.delta.toFixed(2).replace('.',',')+'</td>';
+        }else if(c.tipo==='in'){
+          celda='<td style="color:var(--success)">+'+c.delta.toFixed(2).replace('.',',')+'</td>';
         }
-        if(pagado&&!esManual)concepto+=' <span style="color:var(--success);font-size:10px;">✓ pagado</span>';
-        const sCol=run>0.001?'var(--success)':run<-0.001?'var(--danger)':'var(--text2)';
-        const saldoCell='<td style="font-weight:600;color:'+sCol+'">'+run.toFixed(2).replace('.',',')+'€</td>';
-        return {ts:tStamp(r),html:'<tr><td>'+r.fecha+'</td><td>'+(r.hora||'')+'</td><td>'+concepto+'</td>'+
-          celda+saldoCell+'<td><button class="t-del" onclick="tBorrar('+r.id+')">✕</button></td></tr>'};
+        if(pagado&&!c.esManual)concepto+=' <span style="color:var(--success);font-size:10px;">✓ pagado</span>';
+        const sCol=c.saldo>0.001?'var(--success)':c.saldo<-0.001?'var(--danger)':'var(--text2)';
+        const saldoCell='<td style="font-weight:600;color:'+sCol+'">'+c.saldo.toFixed(2).replace('.',',')+'€</td>';
+        return '<tr><td>'+r.fecha+'</td><td>'+(r.hora||'')+'</td><td>'+concepto+'</td>'+
+          celda+saldoCell+'<td><button class="t-del" onclick="tBorrar('+r.id+')">✕</button></td></tr>';
       });
-      // Mostrar más recientes arriba (pero el saldo ya está calculado en orden correcto)
-      const bodyArr=filas.slice().reverse().map(f=>f.html);
+      // Mostrar más recientes arriba (el saldo ya está calculado en orden correcto)
+      const bodyArr=filas.slice().reverse();
       let th='<tr><th>Fecha</th><th>Hora</th><th>Concepto</th><th>'+CAIXA+'</th><th>Saldo</th><th></th></tr>';
       let body=bodyArr.join('');
       if(!rows.length)body='<tr><td colspan="99" style="text-align:center;color:var(--text2);padding:16px;">Sin traspasos aún</td></tr>';
       histEl.innerHTML='<div style="overflow-x:auto;max-height:55vh;"><table class="t-table">'+th+body+'</table></div>';
-      window._tLastRows=ordenadas; // para el PDF
+      window._tLastRows=calc.map(c=>c.row); // para el PDF (orden cronológico)
     }
     if(saldoEl){ saldoEl.innerHTML=''; } // sección "saldo de cada persona" eliminada
     if(deudaEl){
@@ -1113,15 +1143,15 @@ async function tAddManual(){
 // Imprimir / PDF de la tabla (mismo método que el resto de la app)
 function tPrintPDF(){
   const rows=window._tLastRows||[];
-  const CAIXA='CAIXA CAMBIO';
-  let run=0;
-  const tr=rows.map(r=>{
-    let concepto=tConceptoLimpio(r),cel='—',esManual=(r.de==='__SALDO__');
-    if(esManual){run=parseFloat(r.importe)||0;concepto='Saldo declarado';cel='—';}
-    else if(r.de===CAIXA){const d=-(parseFloat(r.importe)||0);run+=d;cel=d.toFixed(2).replace('.',',');}
-    else if(r.para===CAIXA){const d=+(parseFloat(r.importe)||0);run+=d;cel='+'+d.toFixed(2).replace('.',',');}
-    if(tEsPagado(r)&&!esManual)concepto+=' (pagado)';
-    return '<tr><td>'+r.fecha+'</td><td>'+(r.hora||'')+'</td><td>'+concepto+'</td><td style="text-align:right">'+cel+'</td><td style="text-align:right;font-weight:bold">'+run.toFixed(2).replace('.',',')+'€</td></tr>';
+  const calc=tCalcFilas(rows);
+  const tr=calc.map(c=>{
+    const r=c.row;
+    let concepto=tConceptoLimpio(r),cel='—';
+    if(c.esManual){concepto='Saldo declarado';cel='—';}
+    else if(c.tipo==='out'){cel=c.delta.toFixed(2).replace('.',',');}
+    else if(c.tipo==='in'){cel='+'+c.delta.toFixed(2).replace('.',',');}
+    if(tEsPagado(r)&&!c.esManual)concepto+=' (pagado)';
+    return '<tr><td>'+r.fecha+'</td><td>'+(r.hora||'')+'</td><td>'+concepto+'</td><td style="text-align:right">'+cel+'</td><td style="text-align:right;font-weight:bold">'+c.saldo.toFixed(2).replace('.',',')+'€</td></tr>';
   }).join('');
   const hoy=new Date().toLocaleDateString('es-ES');
   const html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Traspasos</title>'+
