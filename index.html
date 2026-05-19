@@ -81,10 +81,16 @@
     .month-filter select{flex:1;}
     .info-pill{background:var(--success-dim);color:var(--success);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;border:1px solid rgba(16,185,129,0.3);}
     /* ===== MÓDULO TRASPASOS ===== */
-    .t-table{width:100%;border-collapse:collapse;font-size:12px;}
-    .t-table th,.t-table td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;}
-    .t-table th{color:var(--text2);font-weight:600;font-size:11px;position:sticky;top:0;background:var(--bg2);}
+    .t-table{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed;}
+    .t-table th,.t-table td{padding:6px 4px;border-bottom:1px solid var(--border);text-align:center;word-wrap:break-word;overflow-wrap:anywhere;}
+    .t-table th{color:var(--text2);font-weight:600;font-size:10px;position:sticky;top:0;background:var(--bg2);}
     .t-table td{color:var(--text);}
+    .t-table th:nth-child(1),.t-table td:nth-child(1){width:18%;}
+    .t-table th:nth-child(2),.t-table td:nth-child(2){width:38%;text-align:left;}
+    .t-table th:nth-child(3),.t-table td:nth-child(3){width:19%;}
+    .t-table th:nth-child(4),.t-table td:nth-child(4){width:19%;}
+    .t-table th:nth-child(5),.t-table td:nth-child(5){width:6%;}
+    .t-c-concepto{font-size:11px;line-height:1.25;}
     .t-del{background:var(--danger-dim);color:var(--danger);border:none;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:var(--font);}
     .t-saldo-row,.t-deuda-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;font-size:15px;}
     .t-deuda-row{justify-content:flex-start;gap:5px;flex-wrap:wrap;}
@@ -1070,15 +1076,15 @@ async function tRenderTabla(){
         if(pagado&&!c.esManual)concepto+=' <span style="color:var(--success);font-size:10px;">✓ pagado</span>';
         const sCol=c.saldo>0.001?'var(--success)':c.saldo<-0.001?'var(--danger)':'var(--text2)';
         const saldoCell='<td style="font-weight:600;color:'+sCol+'">'+c.saldo.toFixed(2).replace('.',',')+'€</td>';
-        return '<tr><td>'+r.fecha+'</td><td>'+(r.hora||'')+'</td><td>'+concepto+'</td>'+
+        return '<tr><td>'+r.fecha+'</td><td class="t-c-concepto">'+concepto+'</td>'+
           celda+saldoCell+'<td><button class="t-del" onclick="tBorrar('+r.id+')">✕</button></td></tr>';
       });
       // Mostrar más recientes arriba (el saldo ya está calculado en orden correcto)
       const bodyArr=filas.slice().reverse();
-      let th='<tr><th>Fecha</th><th>Hora</th><th>Concepto</th><th>'+CAIXA+'</th><th>Saldo</th><th></th></tr>';
+      let th='<tr><th>Fecha</th><th>Concepto</th><th>'+CAIXA+'</th><th>Saldo</th><th></th></tr>';
       let body=bodyArr.join('');
       if(!rows.length)body='<tr><td colspan="99" style="text-align:center;color:var(--text2);padding:16px;">Sin traspasos aún</td></tr>';
-      histEl.innerHTML='<div style="overflow-x:auto;max-height:55vh;"><table class="t-table">'+th+body+'</table></div>';
+      histEl.innerHTML='<div style="max-height:60vh;overflow-y:auto;"><table class="t-table">'+th+body+'</table></div>';
       window._tLastRows=calc.map(c=>c.row); // para el PDF (orden cronológico)
     }
     if(saldoEl){ saldoEl.innerHTML=''; } // sección "saldo de cada persona" eliminada
