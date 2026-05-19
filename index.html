@@ -583,14 +583,22 @@ const HDR={'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorizatio
 
 // Contraseñas guardadas en localStorage para poder cambiarlas
 function loadPasswords() {
-  const saved = localStorage.getItem('emp_passwords');
-  if (saved) return JSON.parse(saved);
-  return {
+  const DEFAULTS = {
     RICARDO:'RICARDO1234', ROGELIO:'ROGELIO1234', MANUEL:'MANUEL1234',
     MARCELINO:'MARCELINO1234', PASCUAL:'PASCUAL1234',
     MARYCARMEN:'MARYCARMEN1234', CRISTINA:'CRISTINA1234',
-    PATRICIA:'PATRICIA1234', CHINO:'CHINO1234', ADMIN:'ADMIN1234'
+    PATRICIA:'PATRICIA1234', JOSE:'JOSE1234', CHINO:'CHINO1234', ADMIN:'ADMIN1234'
   };
+  const saved = localStorage.getItem('emp_passwords');
+  if (saved) {
+    const p = JSON.parse(saved);
+    // Añadir cualquier clave por defecto que falte (ej. usuarios nuevos)
+    let changed=false;
+    for (const k in DEFAULTS){ if(!(k in p)){ p[k]=DEFAULTS[k]; changed=true; } }
+    if(changed) localStorage.setItem('emp_passwords', JSON.stringify(p));
+    return p;
+  }
+  return {...DEFAULTS};
 }
 function savePasswords(p) { localStorage.setItem('emp_passwords', JSON.stringify(p)); }
 
@@ -603,8 +611,14 @@ const EMP_LIST = [
   {key:'MARYCARMEN',name:'Marycarmen', initials:'MC'},
   {key:'CRISTINA',  name:'Cristina',   initials:'CR'},
   {key:'PATRICIA',  name:'Patricia',   initials:'PT'},
+  {key:'JOSE',      name:'Jose',       initials:'JO', soloTraspasos:true},
   // Chiño has own tab - excluded from main EMP_LIST
 ];
+// Usuarios SOLO con acceso a Traspasos (sin Horas, sin tabla en Supabase)
+function esSoloTraspasos(key){
+  const e=EMP_LIST.find(x=>x.key===key);
+  return !!(e&&e.soloTraspasos);
+}
 
 const MONTHS=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const MONTHS_SHORT=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
@@ -797,8 +811,16 @@ async function doLogin(){
   if(isAdmin){show('screen-admin');loadAdminSummary();}
   else{
     window._empCtx=emp;
-    if(TRASPASO_ACCESO.includes(u)){
-      // Tiene Traspasos -> mostrar pantalla de elección
+    if(esSoloTraspasos(u)){
+      // Usuario SOLO traspasos: sin Horas, directo al módulo de Traspasos.
+      // Se asegura de que tenga acceso al módulo.
+      if(!TRASPASO_ACCESO.includes(u)){
+        TRASPASO_ACCESO.push(u);
+        try{await tSaveConfig();}catch(e){console.warn('grant traspasos',e);}
+      }
+      tAbrirModulo();
+    }else if(TRASPASO_ACCESO.includes(u)){
+      // Tiene Traspasos y Horas -> mostrar pantalla de elección
       document.getElementById('choose-name').textContent='Hola, '+emp.name;
       document.getElementById('choose-avatar').textContent=emp.initials;
       show('screen-choose');
@@ -1311,8 +1333,10 @@ function tAbrirModulo(){
 }
 function tSalir(){
   // Admin -> vuelve al panel admin
-  // Empleado -> vuelve a la pantalla de elección (Traspasos / Horas)
+  // Usuario solo-traspasos -> cierra sesión (no tiene pantalla de elección)
+  // Empleado con Horas+Traspasos -> vuelve a la pantalla de elección
   if(currentUser==='ADMIN'){show('screen-admin');showAdminTab(7);}
+  else if(esSoloTraspasos(currentUser)){doLogout();}
   else show('screen-choose');
 }
 /* ---- ADMIN: participantes y accesos ---- */
@@ -1561,7 +1585,7 @@ async function loadFijoInputs(){
   await loadFijosFromDB();
   const fijoList=document.getElementById('fijo-list');
   const fijos=getFijos();
-  fijoList.innerHTML=EMP_LIST.map(info=>`
+  fijoList.innerHTML=EMP_LIST.filter(info=>!info.soloTraspasos).map(info=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
       <div class="avatar" style="font-size:11px;">${info.initials}</div>
       <div style="flex:1;font-size:13px;font-weight:500;">${info.name}</div>
@@ -1608,7 +1632,7 @@ async function loadAdminSummary(){
   try{
     const [rows,dietAll]=await Promise.all([dbSelectAll(),dbSelectAllDiets()]);
     stEl.style.display='none';
-    listEl.innerHTML=EMP_LIST.map(info=>{
+    listEl.innerHTML=EMP_LIST.filter(info=>!info.soloTraspasos).map(info=>{
       const mine=rows.filter(r=>r.empleado===info.name);
       const tot=mine.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
       const dietRows=dietAll.filter(d=>d.empleado===info.name);
