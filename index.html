@@ -1000,20 +1000,16 @@ function tStamp(r){
 // a su valor; a partir de ahí se siguen sumando los movimientos siguientes.
 function tCalcFilas(rows){
   const CAIXA='CAIXA CAMBIO';
-  const ordenadas=[...rows].sort((a,b)=>{
-    const d=tStamp(a)-tStamp(b);
-    if(d!==0)return d;
-    // misma fecha/hora: el apunte manual de saldo va PRIMERO (es el punto de partida)
-    const am=a.de==='__SALDO__'?0:1, bm=b.de==='__SALDO__'?0:1;
-    if(am!==bm)return am-bm;
-    return (a.id||0)-(b.id||0);
-  });
+  // El saldo se acumula en el ORDEN REAL en que se introdujeron los apuntes
+  // (id ascendente). Es el único orden fiable y secuencial: cada apunte
+  // ocurre después del anterior. La fecha/hora es solo informativa.
+  const ordenadas=[...rows].sort((a,b)=>(a.id||0)-(b.id||0));
   let run=0;
   return ordenadas.map(r=>{
     const esManual=(r.de==='__SALDO__');
     let delta=0, tipo='none'; // 'none' | 'manual' | 'in' | 'out'
     if(esManual){
-      run=parseFloat(r.importe)||0;   // fija el saldo
+      run=parseFloat(r.importe)||0;   // fija el saldo a este valor
       tipo='manual';
     }else if(r.de===CAIXA){
       delta=-(parseFloat(r.importe)||0); // sale dinero de caja -> negativo
