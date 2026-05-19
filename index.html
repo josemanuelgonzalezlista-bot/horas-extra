@@ -80,6 +80,19 @@
     .month-filter{display:flex;gap:8px;align-items:center;}
     .month-filter select{flex:1;}
     .info-pill{background:var(--success-dim);color:var(--success);padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap;border:1px solid rgba(16,185,129,0.3);}
+    /* ===== MÓDULO TRASPASOS ===== */
+    .t-table{width:100%;border-collapse:collapse;font-size:12px;}
+    .t-table th,.t-table td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;}
+    .t-table th{color:var(--text2);font-weight:600;font-size:11px;position:sticky;top:0;background:var(--bg2);}
+    .t-table td{color:var(--text);}
+    .t-del{background:var(--danger-dim);color:var(--danger);border:none;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;font-family:var(--font);}
+    .t-saldo-row,.t-deuda-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;font-size:15px;}
+    .t-deuda-row{justify-content:flex-start;gap:5px;flex-wrap:wrap;}
+    .t-check{display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;font-size:14px;cursor:pointer;}
+    .t-check input{width:18px;height:18px;accent-color:var(--accent);}
+    .t-importe-big{width:100%;font-size:38px;font-weight:600;text-align:center;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius);color:var(--text);padding:20px;font-family:var(--mono);}
+    .t-importe-big::placeholder{color:var(--text3);}
+    .t-part-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;font-size:14px;}
   </style>
 </head>
 <body>
@@ -106,7 +119,7 @@
     <div class="header">
       <div class="header-top">
         <div><h1 id="emp-name">Empleado</h1><div class="sub">Horas extra</div></div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div class="avatar" id="emp-avatar"></div><button class="logout-btn" onclick="doLogout()">Salir</button></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;"><div class="avatar" id="emp-avatar"></div><button class="logout-btn" onclick="doLogout()">Salir</button><button class="logout-btn" id="emp-traspasos-btn" onclick="tAbrirModulo()" style="display:none;background:var(--accent-dim);color:var(--accent2);border-color:var(--accent);">Traspasos</button></div>
       </div>
     </div>
     <div class="tabs">
@@ -293,6 +306,45 @@
   </div>
 
   <!-- ADMIN -->
+  <div class="screen" id="screen-traspasos">
+    <div class="header">
+      <div class="header-top">
+        <div><h1>Traspasos</h1><div class="sub">Cuentas entre personas</div></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <div class="avatar" id="t-avatar">TR</div>
+          <button class="logout-btn" onclick="tSalir()">Salir</button>
+        </div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="t-btn-0" onclick="tShowTab(0)">Nuevo</div>
+      <div class="tab" id="t-btn-1" onclick="tShowTab(1)">Tabla</div>
+      <div class="tab" id="t-btn-2" onclick="tShowTab(2)">Saldos</div>
+    </div>
+    <div id="t-tab-0" class="content">
+      <div class="field"><label>Importe (€)</label>
+        <input id="t-importe" class="t-importe-big" inputmode="decimal" placeholder="0,00"></div>
+      <div class="field" style="margin-top:14px;"><label>Concepto</label>
+        <input id="t-concepto" type="text" placeholder="Ej: Factura Chocolates Mariño"></div>
+      <div class="field" style="margin-top:14px;"><label>COLLO DE:</label>
+        <select id="t-de"></select></div>
+      <div class="field" style="margin-top:14px;"><label>TIÑA QUE PAGAR:</label>
+        <select id="t-para"></select></div>
+      <div id="t-msg" style="display:none;padding:12px;border-radius:var(--radius-sm);margin-top:14px;font-size:14px;text-align:center;"></div>
+      <button id="t-btn-guardar" class="btn btn-primary" style="width:100%;margin-top:18px;" onclick="tGuardar()">Guardar traspaso</button>
+    </div>
+    <div id="t-tab-1" class="content" style="display:none;">
+      <div class="section-title">Histórico de traspasos</div>
+      <div id="t-historial"></div>
+    </div>
+    <div id="t-tab-2" class="content" style="display:none;">
+      <div class="section-title">Saldo de cada persona</div>
+      <div id="t-saldos"></div>
+      <div class="section-title" style="margin-top:14px;">Quién debe a quién</div>
+      <div id="t-deudas"></div>
+    </div>
+  </div>
+
   <div class="screen" id="screen-admin">
     <div class="header">
       <div class="header-top">
@@ -308,6 +360,7 @@
       <div class="tab" id="adm-btn-4" onclick="showAdminTab(4)">PDF</div>
       <div class="tab" id="adm-btn-5" onclick="showAdminTab(5)">Borrar</div>
       <div class="tab" id="adm-btn-6" onclick="showAdminTab(6)">Chiño</div>
+      <div class="tab" id="adm-btn-7" onclick="showAdminTab(7)">Traspasos</div>
     </div>
     <div id="adm-tab-0" class="content">
       <div class="section-title">Fijo mensual por empleado</div>
@@ -429,6 +482,19 @@
       </div>
     </div>
 
+    <div id="adm-tab-7" class="content" style="display:none;">
+      <div class="section-title">Participantes de traspasos</div>
+      <div id="t-adm-parts"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input id="t-adm-newpart" type="text" placeholder="Nombre nuevo" style="flex:1;">
+        <button class="btn btn-primary" onclick="tAddPart()" style="width:auto;padding:0 18px;">Añadir</button>
+      </div>
+      <div class="section-title" style="margin-top:18px;">Usuarios con acceso al módulo</div>
+      <div id="t-adm-acceso"></div>
+      <button class="btn btn-primary" onclick="tAbrirModulo()" style="width:100%;margin-top:16px;">Abrir módulo de Traspasos</button>
+      <div id="t-adm-msg" style="display:none;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;text-align:center;margin-top:10px;"></div>
+    </div>
+
   </div>
 
 <script>
@@ -438,6 +504,10 @@ const API=SUPABASE_URL+'/rest/v1/horas';
 const API_DIETS=SUPABASE_URL+'/rest/v1/dietas';
 const API_TAREAS=SUPABASE_URL+'/rest/v1/tareas';
 const API_FIJOS=SUPABASE_URL+'/rest/v1/fijos';
+const API_TRASPASOS=SUPABASE_URL+'/rest/v1/traspasos';
+const API_TCFG=SUPABASE_URL+'/rest/v1/traspasos_config';
+let TRASPASO_PARTS=[];                       // ["Pepe","Luis",...] participantes
+let TRASPASO_ACCESO=['ADMIN','PATRICIA'];    // keys de usuarios con acceso al módulo
 const HDR={'Content-Type':'application/json','apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY};
 
 // Contraseñas guardadas en localStorage para poder cambiarlas
@@ -533,7 +603,7 @@ function showTab(idx){
 }
 
 function showAdminTab(idx){
-  [0,1,2,3,4,5,6].forEach(i=>{document.getElementById('adm-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('adm-btn-'+i).classList.toggle('active',i===idx);});
+  [0,1,2,3,4,5,6,7].forEach(i=>{document.getElementById('adm-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('adm-btn-'+i).classList.toggle('active',i===idx);});
   if(idx===0)loadAdminSummary();
   if(idx===1){buildMonthFilter();loadAdminMonth();}
   if(idx===2)loadAdminAll();
@@ -541,6 +611,7 @@ function showAdminTab(idx){
   if(idx===4)buildPDFTab();
   if(idx===5)buildDeleteTab();
   if(idx===6)buildChinoTab();
+  if(idx===7)tBuildAdmin();
 }
 
 let calYear=0, calMonth=0, calSelected=null;
@@ -641,7 +712,7 @@ function fmtH(h){
   return sign+str+' horas';
 }
 
-function doLogin(){
+async function doLogin(){
   const u=document.getElementById('login-user').value.trim().toUpperCase();
   const p=document.getElementById('login-pass').value.trim();
   const err=document.getElementById('login-error');
@@ -651,6 +722,7 @@ function doLogin(){
   const isEmp = emp && p===passwords[u];
   if(!isAdmin && !isEmp){err.style.display='block';return;}
   err.style.display='none';currentUser=u;
+  await tLoadConfig();
   if(isAdmin){show('screen-admin');loadAdminSummary();}
   else{
     buildDaySelector();
@@ -671,6 +743,9 @@ function doLogin(){
     // Show tareas tab for ROGELIO
     const tareaTab=document.getElementById('tab-btn-3');
     tareaTab.style.display=u==='ROGELIO'?'block':'none';
+    // Botón de acceso al módulo de Traspasos (si el usuario tiene acceso)
+    const tBtn=document.getElementById('emp-traspasos-btn');
+    if(tBtn)tBtn.style.display=TRASPASO_ACCESO.includes(u)?'block':'none';
     showTab(0);show('screen-employee');
   }
 }
@@ -717,6 +792,212 @@ async function dbSelectAll(){
   const res=await fetch(API+'?order=id.desc&limit=1000',{headers:HDR});
   if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+res.status);}
   return res.json();
+}
+
+/* ============================================================
+   MÓDULO TRASPASOS  (tipo Splitwise local)
+   ============================================================ */
+async function tLoadConfig(){
+  try{
+    const r=await fetch(API_TCFG+'?id=eq.1',{headers:HDR});
+    if(r.ok){
+      const d=await r.json();
+      if(d&&d[0]){
+        TRASPASO_PARTS=Array.isArray(d[0].participantes)?d[0].participantes:[];
+        TRASPASO_ACCESO=Array.isArray(d[0].usuarios_acceso)?d[0].usuarios_acceso:['ADMIN','PATRICIA'];
+      }
+    }
+  }catch(e){console.warn('tLoadConfig',e);}
+}
+async function tSaveConfig(){
+  const body={id:1,participantes:TRASPASO_PARTS,usuarios_acceso:TRASPASO_ACCESO};
+  const r=await fetch(API_TCFG,{method:'POST',
+    headers:{...HDR,'Prefer':'resolution=merge-duplicates'},
+    body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+r.status);}
+}
+async function tInsert(row){
+  const r=await fetch(API_TRASPASOS,{method:'POST',
+    headers:{...HDR,'Prefer':'return=minimal'},body:JSON.stringify(row)});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+r.status);}
+}
+async function tSelectAll(){
+  const r=await fetch(API_TRASPASOS+'?order=id.desc&limit=1000',{headers:HDR});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+r.status);}
+  return r.json();
+}
+async function tDelete(id){
+  const r=await fetch(API_TRASPASOS+'?id=eq.'+id,{method:'DELETE',headers:HDR});
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.message||'Error HTTP '+r.status);}
+}
+function tFillSelects(){
+  ['t-de','t-para'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel)return;
+    sel.innerHTML='<option value="">— elegir —</option>'+
+      TRASPASO_PARTS.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+  });
+}
+function tMsg(txt,tipo){
+  const m=document.getElementById('t-msg');
+  m.textContent=txt;m.style.display='block';
+  m.style.background=tipo==='err'?'var(--danger-dim)':'var(--success-dim)';
+  m.style.color=tipo==='err'?'var(--danger)':'var(--success)';
+}
+async function tGuardar(){
+  const imp=parseFloat(String(document.getElementById('t-importe').value).replace(',','.'));
+  const concepto=document.getElementById('t-concepto').value.trim();
+  const de=document.getElementById('t-de').value;
+  const para=document.getElementById('t-para').value;
+  document.getElementById('t-msg').style.display='none';
+  if(!imp||imp<=0){tMsg('Pon un importe válido','err');return;}
+  if(!concepto){tMsg('Escribe un concepto','err');return;}
+  if(!de||!para){tMsg('Elige las dos personas','err');return;}
+  if(de===para){tMsg('No puede ser la misma persona','err');return;}
+  const now=new Date();
+  const fecha=String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0')+'/'+now.getFullYear();
+  const hora=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const btn=document.getElementById('t-btn-guardar');
+  btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    await tInsert({fecha,hora,concepto,importe:imp,de,para,timestamp:now.toLocaleString('es-ES')});
+    document.getElementById('t-importe').value='';
+    document.getElementById('t-concepto').value='';
+    document.getElementById('t-de').value='';
+    document.getElementById('t-para').value='';
+    tMsg(de+' puso '+imp.toFixed(2).replace('.',',')+'€ — '+para+' se lo debe','ok');
+    tRenderTabla();
+  }catch(e){tMsg('Error: '+e.message,'err');}
+  btn.disabled=false;btn.textContent='Guardar traspaso';
+}
+async function tRenderTabla(){
+  const histEl=document.getElementById('t-historial');
+  const saldoEl=document.getElementById('t-saldos');
+  const deudaEl=document.getElementById('t-deudas');
+  if(histEl)histEl.innerHTML='<div class="status-row"><div class="spinner"></div><span>Cargando...</span></div>';
+  try{
+    const rows=await tSelectAll();
+    const saldo={};
+    TRASPASO_PARTS.forEach(p=>saldo[p]=0);
+    const debe={}; // debe["Luis|Pepe"] = importe que Luis debe a Pepe
+    rows.forEach(r=>{
+      const imp=parseFloat(r.importe)||0;
+      if(saldo[r.de]===undefined)saldo[r.de]=0;
+      if(saldo[r.para]===undefined)saldo[r.para]=0;
+      saldo[r.de]+=imp;     // puso el dinero -> a su favor
+      saldo[r.para]-=imp;   // tiene que pagar -> en su contra
+      const k=r.para+'|'+r.de;
+      debe[k]=(debe[k]||0)+imp;
+      const k2=r.de+'|'+r.para;
+      if(debe[k2]){const min=Math.min(debe[k],debe[k2]);debe[k]-=min;debe[k2]-=min;}
+    });
+    if(histEl){
+      let th='<tr><th>Fecha</th><th>Hora</th><th>Concepto</th>'+
+        TRASPASO_PARTS.map(p=>'<th>'+p+'</th>').join('')+'<th></th></tr>';
+      let body=rows.map(r=>{
+        const cols=TRASPASO_PARTS.map(p=>{
+          if(p===r.de)return '<td style="color:var(--success)">+'+(+r.importe).toFixed(2).replace('.',',')+'</td>';
+          if(p===r.para)return '<td style="color:var(--danger)">-'+(+r.importe).toFixed(2).replace('.',',')+'</td>';
+          return '<td></td>';
+        }).join('');
+        return '<tr><td>'+r.fecha+'</td><td>'+r.hora+'</td><td>'+r.concepto+'</td>'+cols+
+          '<td><button class="t-del" onclick="tBorrar('+r.id+')">✕</button></td></tr>';
+      }).join('');
+      if(!rows.length)body='<tr><td colspan="99" style="text-align:center;color:var(--text2);padding:16px;">Sin traspasos aún</td></tr>';
+      histEl.innerHTML='<div style="overflow-x:auto;max-height:60vh;"><table class="t-table">'+th+body+'</table></div>';
+    }
+    if(saldoEl){
+      saldoEl.innerHTML=Object.keys(saldo).map(p=>{
+        const v=saldo[p];
+        const col=v>0.001?'var(--success)':v<-0.001?'var(--danger)':'var(--text2)';
+        const sign=v>0.001?'+':'';
+        return '<div class="t-saldo-row"><span>'+p+'</span><strong style="color:'+col+'">'+sign+v.toFixed(2).replace('.',',')+'€</strong></div>';
+      }).join('')||'<div class="empty">Sin participantes</div>';
+    }
+    if(deudaEl){
+      const lineas=Object.keys(debe).filter(k=>debe[k]>0.001).map(k=>{
+        const [quien,aQuien]=k.split('|');
+        return '<div class="t-deuda-row"><strong>'+quien+'</strong>&nbsp;debe&nbsp;<strong style="color:var(--danger)">'+debe[k].toFixed(2).replace('.',',')+'€</strong>&nbsp;a&nbsp;<strong>'+aQuien+'</strong></div>';
+      });
+      deudaEl.innerHTML=lineas.join('')||'<div class="empty">Nadie debe nada 🎉</div>';
+    }
+  }catch(e){
+    if(histEl)histEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';
+  }
+}
+async function tBorrar(id){
+  if(!confirm('¿Borrar este traspaso?'))return;
+  try{await tDelete(id);tRenderTabla();}
+  catch(e){alert('Error: '+e.message);}
+}
+function tShowTab(idx){
+  [0,1,2].forEach(i=>{
+    document.getElementById('t-tab-'+i).style.display=i===idx?'flex':'none';
+    document.getElementById('t-btn-'+i).classList.toggle('active',i===idx);
+  });
+  if(idx===0)tFillSelects();
+  if(idx===1)tRenderTabla();
+  if(idx===2)tRenderTabla();
+}
+function tAbrirModulo(){
+  if(!TRASPASO_ACCESO.includes(currentUser)){alert('No tienes acceso al módulo de Traspasos');return;}
+  show('screen-traspasos');
+  document.getElementById('t-avatar').textContent=currentUser==='ADMIN'?'AD':currentUser.slice(0,2);
+  tShowTab(0);
+  tFillSelects();
+}
+function tSalir(){
+  // Si es admin, vuelve al panel admin; si no, cierra sesión
+  if(currentUser==='ADMIN'){show('screen-admin');showAdminTab(7);}
+  else doLogout();
+}
+/* ---- ADMIN: participantes y accesos ---- */
+function tAdmMsg(txt,tipo){
+  const m=document.getElementById('t-adm-msg');
+  if(!m)return;
+  m.textContent=txt;m.style.display='block';
+  m.style.background=tipo==='err'?'var(--danger-dim)':'var(--success-dim)';
+  m.style.color=tipo==='err'?'var(--danger)':'var(--success)';
+  setTimeout(()=>{m.style.display='none';},3000);
+}
+function tBuildAdmin(){
+  const partEl=document.getElementById('t-adm-parts');
+  if(partEl){
+    partEl.innerHTML=TRASPASO_PARTS.map((p,i)=>
+      '<div class="t-part-row"><span>'+p+'</span><button class="t-del" onclick="tQuitarPart('+i+')">Quitar</button></div>'
+    ).join('')||'<div class="empty">Sin participantes aún</div>';
+  }
+  const accEl=document.getElementById('t-adm-acceso');
+  if(accEl){
+    const allUsers=[{key:'ADMIN',name:'Admin'}].concat(EMP_LIST);
+    accEl.innerHTML=allUsers.map(u=>{
+      const checked=TRASPASO_ACCESO.includes(u.key)?'checked':'';
+      return '<label class="t-check"><input type="checkbox" '+checked+' onchange="tToggleAcceso(\''+u.key+'\',this.checked)"> '+u.name+'</label>';
+    }).join('');
+  }
+}
+async function tAddPart(){
+  const inp=document.getElementById('t-adm-newpart');
+  const v=inp.value.trim();
+  if(!v)return;
+  if(TRASPASO_PARTS.includes(v)){tAdmMsg('Ese participante ya existe','err');return;}
+  TRASPASO_PARTS.push(v);inp.value='';
+  try{await tSaveConfig();tBuildAdmin();tFillSelects();tAdmMsg('Participante añadido','ok');}
+  catch(e){TRASPASO_PARTS.pop();tAdmMsg('Error: '+e.message,'err');}
+}
+async function tQuitarPart(i){
+  if(!confirm('¿Quitar a '+TRASPASO_PARTS[i]+'? (no borra sus traspasos ya guardados)'))return;
+  const removed=TRASPASO_PARTS[i];
+  TRASPASO_PARTS.splice(i,1);
+  try{await tSaveConfig();tBuildAdmin();tFillSelects();tAdmMsg(removed+' quitado','ok');}
+  catch(e){TRASPASO_PARTS.splice(i,0,removed);tAdmMsg('Error: '+e.message,'err');}
+}
+async function tToggleAcceso(key,on){
+  const prev=[...TRASPASO_ACCESO];
+  if(on){if(!TRASPASO_ACCESO.includes(key))TRASPASO_ACCESO.push(key);}
+  else{TRASPASO_ACCESO=TRASPASO_ACCESO.filter(k=>k!==key);}
+  try{await tSaveConfig();tAdmMsg('Accesos actualizados','ok');}
+  catch(e){TRASPASO_ACCESO=prev;tBuildAdmin();tAdmMsg('Error: '+e.message,'err');}
 }
 
 async function doConfirm(){
