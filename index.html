@@ -370,9 +370,11 @@
         <input id="t-fecha" type="date"></div>
       <div class="field" style="margin-top:14px;"><label>Concepto</label>
         <input id="t-concepto" type="text" placeholder="Ej: Factura Chocolates Mariño"></div>
-      <div class="field" style="margin-top:14px;"><label>COLLO DE:</label>
+      <div class="field" style="margin-top:14px;"><label>METO EN: <span style="color:var(--text2);font-weight:400;">(opcional — ingreso directo en caja)</span></label>
+        <select id="t-metoen" onchange="tMetoenChange()"></select></div>
+      <div class="field" id="t-field-de" style="margin-top:14px;"><label>COLLO DE:</label>
         <select id="t-de"></select></div>
-      <div class="field" style="margin-top:14px;"><label>TIÑA QUE PAGAR: <span style="color:var(--text2);font-weight:400;">(opcional)</span></label>
+      <div class="field" id="t-field-para" style="margin-top:14px;"><label>TIÑA QUE PAGAR: <span style="color:var(--text2);font-weight:400;">(opcional)</span></label>
         <select id="t-para"></select></div>
       <div id="t-msg" style="display:none;padding:12px;border-radius:var(--radius-sm);margin-top:14px;font-size:14px;text-align:center;"></div>
       <button id="t-btn-guardar" class="btn btn-primary" style="width:100%;margin-top:18px;" onclick="tGuardar()">Guardar traspaso</button>
@@ -986,11 +988,39 @@ function tFillSelects(){
       '<option value="__NADIE__">(nadie — solo apunte, para CAIXA CAMBIO)</option>'+
       TRASPASO_PARTS.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
   }
+  // METO EN: ingreso directo en caja (de momento solo CAIXA CAMBIO)
+  const selMet=document.getElementById('t-metoen');
+  if(selMet){
+    selMet.innerHTML='<option value="">— no usar —</option>'+
+      '<option value="CAIXA CAMBIO">CAIXA CAMBIO</option>';
+    selMet.value='';
+  }
+  // Asegurar que los campos COLLO DE / TIÑA QUE PAGAR estén visibles al abrir
+  const fDe=document.getElementById('t-field-de');
+  const fPara=document.getElementById('t-field-para');
+  if(fDe)fDe.style.display='';
+  if(fPara)fPara.style.display='';
   // Inicializar la fecha a hoy si está vacía
   const f=document.getElementById('t-fecha');
   if(f&&!f.value){
     const n=new Date();
     f.value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+  }
+}
+// Al elegir METO EN: ocultar COLLO DE y TIÑA QUE PAGAR (no se necesitan)
+function tMetoenChange(){
+  const v=document.getElementById('t-metoen').value;
+  const fDe=document.getElementById('t-field-de');
+  const fPara=document.getElementById('t-field-para');
+  if(v){
+    // Es un ingreso directo en caja: ocultar y limpiar los dos desplegables
+    if(fDe)fDe.style.display='none';
+    if(fPara)fPara.style.display='none';
+    document.getElementById('t-de').value='';
+    document.getElementById('t-para').value='';
+  }else{
+    if(fDe)fDe.style.display='';
+    if(fPara)fPara.style.display='';
   }
 }
 function tMsg(txt,tipo){
@@ -1003,23 +1033,32 @@ async function tGuardar(){
   const imp=parseFloat(String(document.getElementById('t-importe').value).replace(',','.'));
   const concepto=document.getElementById('t-concepto').value.trim();
   const fInp=document.getElementById('t-fecha').value; // yyyy-mm-dd
-  const de=document.getElementById('t-de').value;
+  const metoen=document.getElementById('t-metoen').value; // '' o 'CAIXA CAMBIO'
+  let de=document.getElementById('t-de').value;
   let para=document.getElementById('t-para').value;
   document.getElementById('t-msg').style.display='none';
   if(!imp||imp<=0){tMsg('Pon un importe válido','err');return;}
   if(!fInp){tMsg('Elige la fecha del traspaso','err');return;}
   if(!concepto){tMsg('Escribe un concepto','err');return;}
-  if(!de){tMsg('Elige quién pone el dinero (COLLO DE:)','err');return;}
-  // "TIÑA QUE PAGAR" es opcional SOLO si COLLO DE es CAIXA CAMBIO.
-  // En ese caso queda como un simple apunte que no genera deuda.
-  if(!para){
-    if(de==='CAIXA CAMBIO'){
-      para='__NADIE__'; // apunte sin deuda
-    }else{
-      tMsg('Elige quién tiene que pagar (TIÑA QUE PAGAR:)','err');return;
+  // CASO ESPECIAL "METO EN:" -> ingreso directo en caja, sin deuda.
+  //   Internamente: de='__NADIE__', para=destino (ej. 'CAIXA CAMBIO').
+  //   Esto hace que en la tabla aparezca +importe en VERDE y el saldo SUBA.
+  if(metoen){
+    de='__NADIE__';
+    para=metoen;
+  }else{
+    if(!de){tMsg('Elige quién pone el dinero (COLLO DE:)','err');return;}
+    // "TIÑA QUE PAGAR" es opcional SOLO si COLLO DE es CAIXA CAMBIO.
+    // En ese caso queda como un simple apunte que no genera deuda.
+    if(!para){
+      if(de==='CAIXA CAMBIO'){
+        para='__NADIE__'; // apunte sin deuda
+      }else{
+        tMsg('Elige quién tiene que pagar (TIÑA QUE PAGAR:)','err');return;
+      }
     }
+    if(para!=='__NADIE__'&&de===para){tMsg('No puede ser la misma persona','err');return;}
   }
-  if(para!=='__NADIE__'&&de===para){tMsg('No puede ser la misma persona','err');return;}
   const p=fInp.split('-'); // [yyyy,mm,dd]
   const fecha=p[2]+'/'+p[1]+'/'+p[0];
   const now=new Date();
@@ -1032,7 +1071,11 @@ async function tGuardar(){
     document.getElementById('t-concepto').value='';
     document.getElementById('t-de').value='';
     document.getElementById('t-para').value='';
-    if(para==='__NADIE__'){
+    document.getElementById('t-metoen').value='';
+    tMetoenChange(); // restaurar visibilidad de campos
+    if(metoen){
+      tMsg('Ingreso en '+metoen+' guardado (+'+imp.toFixed(2).replace('.',',')+'€)','ok');
+    }else if(para==='__NADIE__'){
       tMsg('Apunte de '+de+' guardado ('+imp.toFixed(2).replace('.',',')+'€) — sin deuda','ok');
     }else{
       tMsg(de+' puso '+imp.toFixed(2).replace('.',',')+'€ — '+para+' se lo debe','ok');
@@ -1097,7 +1140,8 @@ async function tRenderTabla(){
     const debe={}; // debe["Luis|Pepe"] = importe que Luis debe a Pepe
     rows.forEach(r=>{
       if(r.de==='__SALDO__')return; // los apuntes manuales no entran en saldos/deudas
-      if(r.para==='__NADIE__')return; // apunte sin deuda (caso CAIXA CAMBIO)
+      if(r.para==='__NADIE__')return; // apunte sin deuda (caso CAIXA CAMBIO sale)
+      if(r.de==='__NADIE__')return; // ingreso directo en caja (METO EN), sin deuda
       const imp=parseFloat(r.importe)||0;
       if(saldo[r.de]===undefined)saldo[r.de]=0;
       if(saldo[r.para]===undefined)saldo[r.para]=0;
@@ -1159,7 +1203,8 @@ async function tRenderTabla(){
       const grupos={}; // "Luis|Pepe" -> [{id,concepto,importe,fecha}]
       rows.forEach(r=>{
         if(r.de==='__SALDO__')return;
-        if(r.para==='__NADIE__')return; // apunte sin deuda (caso CAIXA CAMBIO)
+        if(r.para==='__NADIE__')return; // apunte sin deuda (caso CAIXA CAMBIO sale)
+        if(r.de==='__NADIE__')return; // ingreso directo en caja (METO EN), sin deuda
         if(tEsPagado(r))return;
         const imp=parseFloat(r.importe)||0;
         if(imp<=0)return;
