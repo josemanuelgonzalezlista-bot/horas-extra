@@ -396,8 +396,18 @@
       </div>
     </div>
     <div id="t-tab-2" class="content" style="display:none;">
+      <div class="section-title">Añadir deuda manual</div>
+      <div class="field"><label>Fecha</label><input id="t-dman-fecha" type="date"></div>
+      <div class="field" style="margin-top:10px;"><label>Concepto</label><input id="t-dman-concepto" type="text" placeholder="Ej: Préstamo, Gasto compartido..."></div>
+      <div class="field" style="margin-top:10px;"><label>Importe (€)</label><input id="t-dman-importe" type="text" inputmode="decimal" placeholder="0,00"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
+        <div class="field"><label>COLLO DE:</label><select id="t-dman-de"></select></div>
+        <div class="field"><label>TIÑA QUE PAGAR:</label><select id="t-dman-para"></select></div>
+      </div>
+      <button class="btn btn-primary" onclick="tAddDeudaManual()" style="width:100%;margin-top:10px;background:var(--warn);border-color:var(--warn);">Añadir deuda</button>
+      <div id="t-dman-msg" style="display:none;padding:10px;border-radius:var(--radius-sm);margin-top:8px;font-size:13px;text-align:center;"></div>
       <div id="t-saldos" style="display:none;"></div>
-      <div class="section-title">Quién debe a quién</div>
+      <div class="section-title" style="margin-top:18px;">Quién debe a quién</div>
       <div id="t-deudas"></div>
       <button class="btn btn-primary" onclick="tAbrirPagar()" style="width:100%;margin-top:16px;">Pagar deudas</button>
 
@@ -1266,6 +1276,43 @@ async function tRenderTabla(){
     if(histEl)histEl.innerHTML='<span style="color:var(--danger);font-size:13px;">Error: '+e.message+'</span>';
   }
 }
+function tFillDeudaManSelects(){
+  const opts='<option value="">— elegir —</option>'+TRASPASO_PARTS.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+  document.getElementById('t-dman-de').innerHTML=opts;
+  document.getElementById('t-dman-para').innerHTML=opts;
+  // Fecha por defecto: hoy
+  if(!document.getElementById('t-dman-fecha').value){
+    const hoy=new Date();
+    document.getElementById('t-dman-fecha').value=hoy.toISOString().slice(0,10);
+  }
+}
+
+async function tAddDeudaManual(){
+  const fInp=document.getElementById('t-dman-fecha').value;
+  const concepto=document.getElementById('t-dman-concepto').value.trim();
+  const impStr=String(document.getElementById('t-dman-importe').value).replace(',','.');
+  const imp=parseFloat(impStr);
+  const de=document.getElementById('t-dman-de').value;
+  const para=document.getElementById('t-dman-para').value;
+  const msg=document.getElementById('t-dman-msg');
+  function dm(txt,tipo){msg.textContent=txt;msg.style.display='block';msg.style.background=tipo==='err'?'var(--danger-dim)':'var(--success-dim)';msg.style.color=tipo==='err'?'var(--danger)':'var(--success)';msg.style.border=tipo==='err'?'1px solid rgba(248,113,113,0.2)':'1px solid rgba(16,185,129,0.3)';}
+  if(!fInp){dm('Elige una fecha','err');return;}
+  if(!concepto){dm('Escribe un concepto','err');return;}
+  if(isNaN(imp)||imp<=0){dm('Pon un importe válido','err');return;}
+  if(!de){dm('Elige quién pone el dinero (COLLO DE)','err');return;}
+  if(!para){dm('Elige quién debe (TIÑA QUE PAGAR)','err');return;}
+  if(de===para){dm('COLLO DE y TIÑA QUE PAGAR no pueden ser la misma persona','err');return;}
+  const p=fInp.split('-');
+  const fecha=p[2]+'/'+p[1]+'/'+p[0];
+  try{
+    await tInsert({fecha,hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),concepto,importe:imp,de,para,timestamp:new Date().toLocaleString('es-ES')});
+    dm('✓ Deuda añadida: '+concepto+' ('+imp.toFixed(2).replace('.',',')+'€) — '+para+' debe a '+de,'ok');
+    document.getElementById('t-dman-concepto').value='';
+    document.getElementById('t-dman-importe').value='';
+    tRenderTabla();
+  }catch(e){dm('Error: '+e.message,'err');}
+}
+
 // Añadir un apunte manual de saldo (fija el saldo en una fecha)
 async function tAddManual(){
   const fInp=document.getElementById('t-man-fecha').value; // yyyy-mm-dd
@@ -1399,7 +1446,7 @@ function tShowTab(idx){
   });
   if(idx===0)tFillSelects();
   if(idx===1)tRenderTabla();
-  if(idx===2){tCerrarPagar();tRenderTabla();}
+  if(idx===2){tCerrarPagar();tRenderTabla();tFillDeudaManSelects();}
 }
 function tAbrirModulo(){
   if(!TRASPASO_ACCESO.includes(currentUser)){alert('No tienes acceso al módulo de Traspasos');return;}
