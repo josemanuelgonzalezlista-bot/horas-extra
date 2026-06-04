@@ -1280,10 +1280,12 @@ async function tRenderTabla(){
           const [quien,aQuien]=k.split('|');
           const items=grupos[k].sort((a,b)=>tStamp(a)-tStamp(b));
           const total=items.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
-          const lis=items.map(r=>
-            '<div class="t-deuda-item"><span>'+(r.fecha||'')+' · '+tConceptoLimpio(r)+
-            '</span><strong>'+(parseFloat(r.importe)||0).toFixed(2).replace('.',',')+'€</strong></div>'
-          ).join('');
+          const lis=items.map(r=>{
+            const esManual=tEsDeudaManual(r);
+            const delBtn=esManual?'<button onclick="tBorrarDeuda('+r.id+')" title="Borrar apunte" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:15px;padding:0 4px;line-height:1;flex-shrink:0;">✕</button>':'';
+            return '<div class="t-deuda-item"><span style="flex:1;">'+(r.fecha||'')+' · '+tConceptoLimpio(r)+(esManual?' <span style="font-size:10px;color:var(--text3);">[manual]</span>':'')+
+            '</span><strong style="flex-shrink:0;">'+(parseFloat(r.importe)||0).toFixed(2).replace('.',',')+'€</strong>'+delBtn+'</div>';
+          }).join('');
           return '<div class="t-deuda-card">'+
             '<div class="t-deuda-head"><strong>'+quien+'</strong> debe a <strong>'+aQuien+'</strong>'+
             '<span class="t-deuda-total">'+total.toFixed(2).replace('.',',')+'€</span></div>'+
@@ -1387,6 +1389,11 @@ async function tBorrarTodo(){
     tRenderTabla();
     alert('Todos los apuntes han sido borrados.');
   }catch(e){alert('Error: '+e.message);}
+}
+async function tBorrarDeuda(id){
+  if(!confirm('¿Borrar este apunte de deuda manual?'))return;
+  try{await tDelete(id);tRenderTabla();}
+  catch(e){alert('Error: '+e.message);}
 }
 async function tBorrar(id){
   if(!confirm('¿Borrar este traspaso?'))return;
