@@ -1786,6 +1786,8 @@ function buildPDFTab(){
   EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{
     const opt=document.createElement('option');opt.value=e.name;opt.textContent=e.name;tareaEmpSel.appendChild(opt);
   });
+  // Add Chiño
+  {const opt=document.createElement('option');opt.value='Chiño';opt.textContent='Chiño';tareaEmpSel.appendChild(opt);}
   // Build month selectors (hours + diets)
   ['pdf-month','pdf-diet-month','pdf-tarea-month'].forEach(id=>{
     const mSel=document.getElementById(id);mSel.innerHTML='';
@@ -1945,6 +1947,8 @@ function buildDeleteTab(){
   ['del-tarea-emp','del-tarea-month-emp'].forEach(id=>{
     const sel=document.getElementById(id);sel.innerHTML='';
     EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{const opt=document.createElement('option');opt.value=e.name;opt.textContent=e.name;sel.appendChild(opt);});
+    // Add Chiño
+    const optC=document.createElement('option');optC.value='Chiño';optC.textContent='Chiño';sel.appendChild(optC);
   });
   loadDelTareaRecords();
   document.getElementById('del-tarea-month-preview').style.display='none';
@@ -2314,6 +2318,8 @@ function buildAdminTareasTab(){
   EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{
     const opt=document.createElement('option');opt.value=e.name;opt.textContent=e.name;empSel.appendChild(opt);
   });
+  // Add Chiño (has own tab, not in EMP_LIST)
+  {const opt=document.createElement('option');opt.value='Chiño';opt.textContent='Chiño';empSel.appendChild(opt);}
   // Init calendar
   const today=new Date();
   admCalTareaYear=today.getFullYear();admCalTareaMonth=today.getMonth();admCalTareaSelected=today;
