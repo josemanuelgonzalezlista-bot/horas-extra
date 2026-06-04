@@ -401,8 +401,8 @@
       <div class="field" style="margin-top:10px;"><label>Concepto</label><input id="t-dman-concepto" type="text" placeholder="Ej: Préstamo, Gasto compartido..."></div>
       <div class="field" style="margin-top:10px;"><label>Importe (€)</label><input id="t-dman-importe" type="text" inputmode="decimal" placeholder="0,00"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;">
-        <div class="field"><label>COLLO DE:</label><select id="t-dman-de"></select></div>
-        <div class="field"><label>TIÑA QUE PAGAR:</label><select id="t-dman-para"></select></div>
+        <div class="field"><label>Quien debe:</label><select id="t-dman-para"></select></div>
+        <div class="field"><label>Debe a:</label><select id="t-dman-de"></select></div>
       </div>
       <button class="btn btn-primary" onclick="tAddDeudaManual()" style="width:100%;margin-top:10px;background:var(--warn);border-color:var(--warn);">Añadir deuda</button>
       <div id="t-dman-msg" style="display:none;padding:10px;border-radius:var(--radius-sm);margin-top:8px;font-size:13px;text-align:center;"></div>
@@ -1016,8 +1016,15 @@ async function tPatch(id,fields){
 }
 // Marca interna para apuntes ya saldados (no rompe nada existente)
 const PAGADO_TAG='[PAGADO] ';
-function tEsPagado(r){return String(r.concepto||'').startsWith(PAGADO_TAG);}
-function tConceptoLimpio(r){return tEsPagado(r)?String(r.concepto).slice(PAGADO_TAG.length):r.concepto;}
+const DEUDA_TAG='[DEUDA] ';
+function tEsPagado(r){return String(r.concepto||'').startsWith(PAGADO_TAG)||String(r.concepto||'').startsWith(PAGADO_TAG.trimEnd()+' '+DEUDA_TAG.trimEnd());}
+function tEsDeudaManual(r){return String(r.concepto||'').startsWith(DEUDA_TAG)||String(r.concepto||'').includes(DEUDA_TAG);}
+function tConceptoLimpio(r){
+  let c=String(r.concepto||'');
+  if(c.startsWith(PAGADO_TAG))c=c.slice(PAGADO_TAG.length);
+  if(c.startsWith(DEUDA_TAG))c=c.slice(DEUDA_TAG.length);
+  return c;
+}
 function tFillSelects(){
   const selDe=document.getElementById('t-de');
   if(selDe){
@@ -1145,6 +1152,8 @@ function tCalcFilas(rows){
   // El saldo se acumula por FECHA (más antiguo primero), igual que se
   // muestra en la tabla. Si dos apuntes tienen la misma fecha, se respeta
   // el orden en que se introdujeron (id ascendente).
+  // Las deudas manuales [DEUDA] no aparecen en la tabla ni afectan al saldo.
+  rows=rows.filter(r=>!tEsDeudaManual(r));
   const ordenadas=[...rows].sort((a,b)=>{
     const d=tStamp(a)-tStamp(b);
     if(d!==0)return d;
@@ -1253,6 +1262,16 @@ async function tRenderTabla(){
         const k=r.para+'|'+r.de; // r.para debe dinero a r.de
         (grupos[k]=grupos[k]||[]).push(r);
       });
+      // Añadir también deudas manuales [DEUDA] pendientes de pago
+      rows.forEach(r=>{
+        if(!tEsDeudaManual(r))return;
+        if(tEsPagado(r))return;
+        const imp=parseFloat(r.importe)||0;
+        if(imp<=0)return;
+        // en deuda manual: de=acreedor (collo de), para=deudor (tiña que pagar) — igual que traspasos
+        const k=r.para+'|'+r.de;
+        (grupos[k]=grupos[k]||[]).push(r);
+      });
       const claves=Object.keys(grupos);
       if(!claves.length){
         deudaEl.innerHTML='<div class="empty">Nadie debe nada 🎉</div>';
@@ -1299,13 +1318,15 @@ async function tAddDeudaManual(){
   if(!fInp){dm('Elige una fecha','err');return;}
   if(!concepto){dm('Escribe un concepto','err');return;}
   if(isNaN(imp)||imp<=0){dm('Pon un importe válido','err');return;}
-  if(!de){dm('Elige quién pone el dinero (COLLO DE)','err');return;}
-  if(!para){dm('Elige quién debe (TIÑA QUE PAGAR)','err');return;}
-  if(de===para){dm('COLLO DE y TIÑA QUE PAGAR no pueden ser la misma persona','err');return;}
+  if(!para){dm('Elige quién debe','err');return;}
+  if(!de){dm('Elige a quién debe','err');return;}
+  if(de===para){dm('No pueden ser la misma persona','err');return;}
   const p=fInp.split('-');
   const fecha=p[2]+'/'+p[1]+'/'+p[0];
   try{
-    await tInsert({fecha,hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),concepto,importe:imp,de,para,timestamp:new Date().toLocaleString('es-ES')});
+    // DEUDA_TAG: no aparece en tabla, solo en Quién debe a quién
+    // de=acreedor (a quien le deben), para=deudor (quien debe)
+    await tInsert({fecha,hora:new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}),concepto:DEUDA_TAG+concepto,importe:imp,de,para,timestamp:new Date().toLocaleString('es-ES')});
     dm('✓ Deuda añadida: '+concepto+' ('+imp.toFixed(2).replace('.',',')+'€) — '+para+' debe a '+de,'ok');
     document.getElementById('t-dman-concepto').value='';
     document.getElementById('t-dman-importe').value='';
@@ -1403,7 +1424,7 @@ async function tPagarRefresh(){
     _tAllRows=rows;
     // Apuntes donde 'de'(deudor) debe a 'para'(acreedor):
     // internamente eso es un apunte con r.de===acreedor (puso el dinero) y r.para===deudor (debe).
-    const items=rows.filter(r=>r.de!=='__SALDO__'&&!tEsPagado(r)&&r.de===para&&r.para===de&&(parseFloat(r.importe)||0)>0)
+    const items=rows.filter(r=>(r.de!=='__SALDO__'||tEsDeudaManual(r))&&!tEsPagado(r)&&r.de===para&&r.para===de&&(parseFloat(r.importe)||0)>0)
                      .sort((a,b)=>tStamp(a)-tStamp(b));
     if(!items.length){listEl.innerHTML='<div class="empty">No hay deudas pendientes de '+de+' hacia '+para+'</div>';return;}
     listEl.innerHTML=items.map(r=>
@@ -1428,12 +1449,37 @@ async function tConfirmarPago(){
   if(!cbs.length){pm('Selecciona al menos un apunte','err');return;}
   const ids=cbs.map(c=>c.value);
   if(!confirm('¿Marcar como pagados '+ids.length+' apunte(s)? Dejarán de aparecer en "Quién debe a quién".'))return;
+  const de=document.getElementById('t-pay-de').value;   // deudor (quien paga)
+  const para=document.getElementById('t-pay-para').value; // acreedor (a quien paga)
+  const CAIXA='CAIXA CAMBIO';
   try{
     for(const c of cbs){
       const id=c.value;
       const row=_tAllRows.find(r=>String(r.id)===String(id));
       const base=row?tConceptoLimpio(row):'';
+      // Marcar como pagado
       await tPatch(id,{concepto:PAGADO_TAG+base});
+      // Si era deuda manual y CAIXA interviene -> generar movimiento en tabla
+      if(row&&tEsDeudaManual(row)){
+        const imp=parseFloat(row.importe)||0;
+        const now=new Date();
+        const fecha=now.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'/');
+        const hora=now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+        const ts=now.toLocaleString('es-ES');
+        // Caso 1: CAIXA es acreedor (para = CAIXA). El deudor le paga a CAIXA -> entra dinero en caja
+        if(para===CAIXA){
+          // para=CAIXA -> entra dinero -> de=deudor(quien cobra), para=CAIXA(caja recibe)
+          // Internamente: de=acreedor real (deudor le paga a caja), para=CAIXA
+          // tCalcFilas: CAIXA como para -> tipo 'in' -> positivo
+          await tInsert({fecha,hora,concepto:'Cobro deuda: '+base,importe:imp,de:de,para:CAIXA,timestamp:ts});
+        }
+        // Caso 2: CAIXA es el deudor (de = CAIXA). CAIXA paga al acreedor -> sale de caja
+        else if(de===CAIXA){
+          // de=CAIXA -> sale dinero -> tipo 'out' -> negativo
+          await tInsert({fecha,hora,concepto:'Pago deuda: '+base,importe:imp,de:CAIXA,para:para,timestamp:ts});
+        }
+        // Si ninguno es CAIXA, no hay movimiento en tabla (solo se marca pagado)
+      }
     }
     pm(ids.length+' apunte(s) saldados','ok');
     setTimeout(()=>{tCerrarPagar();tRenderTabla();},900);
