@@ -1470,18 +1470,23 @@ async function tConfirmarPago(){
     for(const {id,row} of items){
       const base=row?tConceptoLimpio(row):'';
       await tPatch(id,{concepto:PAGADO_TAG+base});
-      // Si era deuda manual y CAIXA interviene -> generar movimiento en tabla
-      if(row&&tEsDeudaManual(row)){
+      // Si CAIXA interviene -> generar movimiento en tabla al pagar
+      if(row){
         const imp=parseFloat(row.importe)||0;
         const now=new Date();
         const fecha=now.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'/');
         const hora=now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
         const ts=now.toLocaleString('es-ES');
+        // row.de = acreedor (quien puso el dinero), row.para = deudor (quien debe)
+        // de = deudor (quien paga ahora), para = acreedor (a quien paga)
         if(para===CAIXA){
-          await tInsert({fecha,hora,concepto:'Cobro deuda: '+base,importe:imp,de:de,para:CAIXA,timestamp:ts});
+          // CAIXA cobra -> entra dinero en caja -> de=deudor, para=CAIXA
+          await tInsert({fecha,hora,concepto:'Cobro: '+base,importe:imp,de:de,para:CAIXA,timestamp:ts});
         }else if(de===CAIXA){
-          await tInsert({fecha,hora,concepto:'Pago deuda: '+base,importe:imp,de:CAIXA,para:para,timestamp:ts});
+          // CAIXA paga -> sale dinero de caja -> de=CAIXA, para=acreedor
+          await tInsert({fecha,hora,concepto:'Pago: '+base,importe:imp,de:CAIXA,para:para,timestamp:ts});
         }
+        // Si ninguno es CAIXA -> no hay movimiento en tabla
       }
     }
     pm(items.length+' apunte(s) saldados ✓','ok');
