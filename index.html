@@ -1017,8 +1017,8 @@ async function tPatch(id,fields){
 // Marca interna para apuntes ya saldados (no rompe nada existente)
 const PAGADO_TAG='[PAGADO] ';
 const DEUDA_TAG='[DEUDA] ';
-function tEsPagado(r){return String(r.concepto||'').startsWith(PAGADO_TAG)||String(r.concepto||'').startsWith(PAGADO_TAG.trimEnd()+' '+DEUDA_TAG.trimEnd());}
-function tEsDeudaManual(r){return String(r.concepto||'').startsWith(DEUDA_TAG)||String(r.concepto||'').includes(DEUDA_TAG);}
+function tEsPagado(r){return String(r.concepto||'').startsWith(PAGADO_TAG);}
+function tEsDeudaManual(r){const c=String(r.concepto||'');return c.startsWith(DEUDA_TAG)||(c.startsWith(PAGADO_TAG)&&c.slice(PAGADO_TAG.length).startsWith(DEUDA_TAG));}
 function tConceptoLimpio(r){
   let c=String(r.concepto||'');
   if(c.startsWith(PAGADO_TAG))c=c.slice(PAGADO_TAG.length);
@@ -1431,7 +1431,7 @@ async function tPagarRefresh(){
     _tAllRows=rows;
     // Apuntes donde 'de'(deudor) debe a 'para'(acreedor):
     // internamente eso es un apunte con r.de===acreedor (puso el dinero) y r.para===deudor (debe).
-    const items=rows.filter(r=>(r.de!=='__SALDO__'||tEsDeudaManual(r))&&!tEsPagado(r)&&r.de===para&&r.para===de&&(parseFloat(r.importe)||0)>0)
+    const items=rows.filter(r=>r.de!=='__SALDO__'&&!tEsPagado(r)&&r.de===para&&r.para===de&&(parseFloat(r.importe)||0)>0)
                      .sort((a,b)=>tStamp(a)-tStamp(b));
     if(!items.length){listEl.innerHTML='<div class="empty">No hay deudas pendientes de '+de+' hacia '+para+'</div>';return;}
     listEl.innerHTML=items.map(r=>
@@ -1449,22 +1449,26 @@ function tPagarTotal(){
     ('Seleccionado: '+tot.toFixed(2).replace('.',',')+'€ ('+cbs.length+' apunte'+(cbs.length!==1?'s':'')+')'):'';
 }
 async function tConfirmarPago(){
-  const cbs=[...document.querySelectorAll('.t-pay-cb:checked')];
   const m=document.getElementById('t-pay-msg');
-  function pm(txt,tipo){m.textContent=txt;m.style.display='block';m.style.background=tipo==='err'?'var(--danger-dim)':'var(--success-dim)';m.style.color=tipo==='err'?'var(--danger)':'var(--success)';}
+  function pm(txt,tipo){m.textContent=txt;m.style.display='block';m.style.background=tipo==='err'?'var(--danger-dim)':'var(--success-dim)';m.style.color=tipo==='err'?'var(--danger)':'var(--success)';m.style.border=tipo==='err'?'1px solid rgba(248,113,113,0.2)':'1px solid rgba(16,185,129,0.3)';}
   m.style.display='none';
+  // Capturar datos ANTES del confirm para que el DOM no cambie
+  const cbs=[...document.querySelectorAll('.t-pay-cb:checked')];
   if(!cbs.length){pm('Selecciona al menos un apunte','err');return;}
-  const ids=cbs.map(c=>c.value);
-  if(!confirm('¿Marcar como pagados '+ids.length+' apunte(s)? Dejarán de aparecer en "Quién debe a quién".'))return;
-  const de=document.getElementById('t-pay-de').value;   // deudor (quien paga)
-  const para=document.getElementById('t-pay-para').value; // acreedor (a quien paga)
+  const de=document.getElementById('t-pay-de').value;
+  const para=document.getElementById('t-pay-para').value;
+  // Snapshot de los datos: id + row de _tAllRows
+  const items=cbs.map(c=>({
+    id:c.value,
+    row:_tAllRows.find(r=>String(r.id)===String(c.value))||null
+  }));
+  if(!confirm('¿Marcar como pagados '+items.length+' apunte(s)? Dejarán de aparecer en "Quién debe a quién".'))return;
   const CAIXA='CAIXA CAMBIO';
+  const btn=document.querySelector('#t-pagar-panel .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Guardando...';}
   try{
-    for(const c of cbs){
-      const id=c.value;
-      const row=_tAllRows.find(r=>String(r.id)===String(id));
+    for(const {id,row} of items){
       const base=row?tConceptoLimpio(row):'';
-      // Marcar como pagado
       await tPatch(id,{concepto:PAGADO_TAG+base});
       // Si era deuda manual y CAIXA interviene -> generar movimiento en tabla
       if(row&&tEsDeudaManual(row)){
@@ -1473,24 +1477,21 @@ async function tConfirmarPago(){
         const fecha=now.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'/');
         const hora=now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
         const ts=now.toLocaleString('es-ES');
-        // Caso 1: CAIXA es acreedor (para = CAIXA). El deudor le paga a CAIXA -> entra dinero en caja
         if(para===CAIXA){
-          // para=CAIXA -> entra dinero -> de=deudor(quien cobra), para=CAIXA(caja recibe)
-          // Internamente: de=acreedor real (deudor le paga a caja), para=CAIXA
-          // tCalcFilas: CAIXA como para -> tipo 'in' -> positivo
           await tInsert({fecha,hora,concepto:'Cobro deuda: '+base,importe:imp,de:de,para:CAIXA,timestamp:ts});
-        }
-        // Caso 2: CAIXA es el deudor (de = CAIXA). CAIXA paga al acreedor -> sale de caja
-        else if(de===CAIXA){
-          // de=CAIXA -> sale dinero -> tipo 'out' -> negativo
+        }else if(de===CAIXA){
           await tInsert({fecha,hora,concepto:'Pago deuda: '+base,importe:imp,de:CAIXA,para:para,timestamp:ts});
         }
-        // Si ninguno es CAIXA, no hay movimiento en tabla (solo se marca pagado)
       }
     }
-    pm(ids.length+' apunte(s) saldados','ok');
-    setTimeout(()=>{tCerrarPagar();tRenderTabla();},900);
-  }catch(e){pm('Error: '+e.message,'err');}
+    pm(items.length+' apunte(s) saldados ✓','ok');
+    setTimeout(()=>{tCerrarPagar();tRenderTabla();},1200);
+  }catch(e){
+    console.error('tConfirmarPago error:',e);
+    pm('Error: '+e.message,'err');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Confirmar pago';}
+  }
 }
 function tShowTab(idx){
   [0,1,2].forEach(i=>{
