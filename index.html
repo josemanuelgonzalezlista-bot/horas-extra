@@ -1480,11 +1480,11 @@ async function tConfirmarPago(){
         // row.de = acreedor (quien puso el dinero), row.para = deudor (quien debe)
         // de = deudor (quien paga ahora), para = acreedor (a quien paga)
         if(para===CAIXA){
-          // CAIXA cobra -> entra dinero en caja -> de=deudor, para=CAIXA
-          await tInsert({fecha,hora,concepto:'Cobro: '+base,importe:imp,de:de,para:CAIXA,timestamp:ts});
+          // CAIXA cobra -> entra dinero en caja -> para=CAIXA, de=__NADIE__ para no generar deuda
+          await tInsert({fecha,hora,concepto:'Cobro: '+base,importe:imp,de:'__NADIE__',para:CAIXA,timestamp:ts});
         }else if(de===CAIXA){
-          // CAIXA paga -> sale dinero de caja -> de=CAIXA, para=acreedor
-          await tInsert({fecha,hora,concepto:'Pago: '+base,importe:imp,de:CAIXA,para:para,timestamp:ts});
+          // CAIXA paga -> sale dinero de caja -> de=CAIXA, para=__NADIE__ para no generar deuda
+          await tInsert({fecha,hora,concepto:'Pago: '+base,importe:imp,de:CAIXA,para:'__NADIE__',timestamp:ts});
         }
         // Si ninguno es CAIXA -> no hay movimiento en tabla
       }
