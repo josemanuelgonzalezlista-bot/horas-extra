@@ -1738,6 +1738,16 @@ async function loadFijoInputs(){
   await loadFijosFromDB();
   const fijoList=document.getElementById('fijo-list');
   const fijos=getFijos();
+  const chinoRow=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
+      <div class="avatar" style="font-size:11px;">CH</div>
+      <div style="flex:1;font-size:13px;font-weight:500;">Chi\u00f1o</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <input type="number" id="fijo-CHINO" value="${fijos['CHINO']||0}" min="0" step="0.01"
+          style="width:90px;padding:7px 10px;font-size:14px;font-weight:600;text-align:right;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);"
+          onchange="saveFijo('CHINO')" />
+        <span style="font-size:13px;color:var(--text2);">\u20ac</span>
+      </div>
+    </div>`;
   fijoList.innerHTML=EMP_LIST.filter(info=>!info.soloTraspasos).map(info=>`
     <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
       <div class="avatar" style="font-size:11px;">${info.initials}</div>
@@ -1748,7 +1758,7 @@ async function loadFijoInputs(){
           onchange="saveFijo('${info.key}')" />
         <span style="font-size:13px;color:var(--text2);">€</span>
       </div>
-    </div>`).join('');
+    </div>`).join('')+chinoRow;
 }
 
 let _fijosCache={};
