@@ -437,10 +437,9 @@
     </div>
     <div class="tabs">
       <div class="tab active" id="adm-btn-0" onclick="showAdminTab(0)">Fijos</div>
-      <div class="tab" id="adm-btn-1" onclick="showAdminTab(1)">Por mes</div>
-      <div class="tab" id="adm-btn-2" onclick="showAdminTab(2)">Todos</div>
+      <div class="tab" id="adm-btn-1" onclick="showAdminTab(1)">Resumen</div>
       <div class="tab" id="adm-btn-3" onclick="showAdminTab(3)">Contraseñas</div>
-      <div class="tab" id="adm-btn-4" onclick="showAdminTab(4)">PDF</div>
+      <div class="tab" id="adm-btn-4" onclick="showAdminTab(4)">Informes</div>
       <div class="tab" id="adm-btn-5" onclick="showAdminTab(5)">Borrar</div>
       <div class="tab" id="adm-btn-6" onclick="showAdminTab(6)">Chiño</div>
       <div class="tab" id="adm-btn-7" onclick="showAdminTab(7)">Traspasos</div>
@@ -452,17 +451,24 @@
       <div id="fijo-save-msg" style="display:none;margin-top:10px;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;text-align:center;"></div>
     </div>
     <div id="adm-tab-1" class="content" style="display:none;">
-      <div class="month-filter">
-        <div class="field" style="flex:1;"><label>Mes</label><select id="sel-month-filter" onchange="loadAdminMonth()"></select></div>
+      <!-- Filtros -->
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px;">
+        <div class="field" style="flex:1;min-width:140px;margin:0;"><label>Mes</label><select id="res-month-sel" onchange="loadResumen()"></select></div>
+        <div class="field" style="flex:1;min-width:140px;margin:0;"><label>Empleado</label><select id="res-emp-sel" onchange="loadResumen()"></select></div>
       </div>
-      <div class="total-bar"><span>Total horas ese mes</span><strong id="adm-month-total">— h</strong></div>
-      <div id="adm-status-1" class="status-row" style="display:none;"><div class="spinner"></div><span>Cargando...</span></div>
-      <div class="history-list" id="adm-month-list"></div>
-    </div>
-    <div id="adm-tab-2" class="content" style="display:none;">
-      <div class="total-bar"><span>Total horas (empresa)</span><strong id="adm-total">— h</strong></div>
-      <div id="adm-status-2" class="status-row" style="display:none;"><div class="spinner"></div><span>Cargando...</span></div>
-      <div class="history-list" id="adm-all"></div>
+      <!-- Checkboxes Horas / Dietas / Tareas / Detalle -->
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="res-chk-horas" checked onchange="loadResumen()"> Horas</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="res-chk-dietas" checked onchange="loadResumen()"> Dietas</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="res-chk-tareas" checked onchange="loadResumen()"> Tareas</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="res-chk-detalle" onchange="loadResumen()"> Detalle</label>
+      </div>
+      <!-- Totales -->
+      <div id="res-totales" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>
+      <!-- Spinner -->
+      <div id="res-status" class="status-row" style="display:none;"><div class="spinner"></div><span>Cargando...</span></div>
+      <!-- Lista -->
+      <div class="history-list" id="res-list"></div>
     </div>
     <div id="adm-tab-3" class="content" style="display:none;">
       <div class="section-title">Cambiar contraseñas</div>
@@ -470,81 +476,42 @@
       <div id="pass-msg" style="display:none;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;text-align:center;"></div>
     </div>
     <div id="adm-tab-4" class="content" style="display:none;">
-      <div class="section-title">Informe de horas extra</div>
-      <div class="field"><label>Empleado</label><select id="pdf-emp"><option value="TODOS">Todos los empleados</option></select></div>
-      <div class="field"><label>Mes</label><select id="pdf-month"></select></div>
-      <button class="btn btn-primary" onclick="generatePDF()" style="width:100%;">Generar PDF — Horas extra</button>
-      <div class="section-title" style="margin-top:4px;">Informe de dietas</div>
-      <div class="field"><label>Empleado</label><select id="pdf-diet-emp">
-        <option value="TODOS">Marcelino y Pascual</option>
-        <option value="Marcelino">Marcelino</option>
-        <option value="Pascual">Pascual</option>
-      </select></div>
-      <div class="field"><label>Mes</label><select id="pdf-diet-month"></select></div>
-      <button class="btn btn-primary" onclick="generateDietPDF()" style="width:100%;background:var(--success);border-color:var(--success);box-shadow:0 4px 20px rgba(16,185,129,0.3);">Generar PDF — Dietas</button>
-      <div class="section-title" style="margin-top:4px;">Informe de tareas extra</div>
-      <div class="field"><label>Empleado</label><select id="pdf-tarea-emp"></select></div>
-      <div class="field"><label>Mes</label><select id="pdf-tarea-month"></select></div>
-      <button class="btn btn-primary" onclick="generateTareaPDF()" style="width:100%;background:var(--warn);border-color:var(--warn);box-shadow:0 4px 20px rgba(245,158,11,0.3);">Generar PDF — Tareas</button>
+      <div class="section-title">Generar informe</div>
+      <!-- Empleado y Mes -->
+      <div class="field"><label>Empleado</label><select id="inf-emp"></select></div>
+      <div class="field"><label>Mes</label><select id="inf-month"></select></div>
+      <!-- Checkboxes -->
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="inf-chk-horas" checked> Horas</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="inf-chk-dietas"> Dietas</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="inf-chk-tareas"> Tareas</label>
+      </div>
+      <button class="btn btn-primary" onclick="generateInforme()" style="width:100%;">Generar PDF</button>
+      <!-- Selectores ocultos para compatibilidad con funciones existentes -->
+      <select id="pdf-emp" style="display:none;"></select>
+      <select id="pdf-month" style="display:none;"></select>
+      <select id="pdf-diet-emp" style="display:none;"><option value="TODOS">Marcelino y Pascual</option><option value="Marcelino">Marcelino</option><option value="Pascual">Pascual</option></select>
+      <select id="pdf-diet-month" style="display:none;"></select>
+      <select id="pdf-tarea-emp" style="display:none;"></select>
+      <select id="pdf-tarea-month" style="display:none;"></select>
     </div>
 
 </div>
     <div id="adm-tab-5" class="content" style="display:none;">
-      <div class="section-title">Borrar registro por día</div>
-      <div class="field"><label>Empleado</label><select id="del-emp-day" onchange="loadDelDayRecords()"></select></div>
-      <div class="field"><label>Registros del empleado</label><select id="del-record-sel"><option>— Selecciona un empleado —</option></select></div>
-      <div id="del-day-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
-      <button class="btn btn-danger" id="del-day-btn" onclick="deleteRecord()" style="width:100%;" disabled>Borrar este registro</button>
-
-      <div class="section-title" style="margin-top:8px;">Borrar mes completo de un empleado</div>
-      <div class="row-2">
-        <div class="field"><label>Empleado</label><select id="del-emp-month"></select></div>
-        <div class="field"><label>Mes</label><select id="del-month-sel"></select></div>
+      <!-- Selector de tipo -->
+      <div class="field"><label>Qué quieres borrar</label>
+        <select id="del-tipo" onchange="buildDeleteSection()">
+          <option value="">— elegir —</option>
+          <option value="hora">Horas — registro por día</option>
+          <option value="hora-mes">Horas — mes completo</option>
+          <option value="dieta">Dietas — registro por día</option>
+          <option value="dieta-mes">Dietas — mes completo</option>
+          <option value="tarea">Tareas — registro individual</option>
+          <option value="tarea-mes">Tareas — mes completo</option>
+        </select>
       </div>
-      <div id="del-month-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
-      <button class="btn btn-danger" onclick="previewDeleteMonth()" style="width:100%;">Ver registros a borrar</button>
-      <button class="btn btn-danger" id="del-month-btn" onclick="deleteMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar mes completo</button>
-      <div id="del-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>
-
-      <div class="section-title" style="margin-top:8px;">Borrar dieta por día</div>
-      <div class="field"><label>Empleado</label><select id="del-diet-emp" onchange="loadDelDietRecords()">
-        <option value="Marcelino">Marcelino</option>
-        <option value="Pascual">Pascual</option>
-      </select></div>
-      <div class="field"><label>Dietas del empleado</label><select id="del-diet-sel"><option value="">— Selecciona un empleado —</option></select></div>
-      <div id="del-diet-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
-      <button class="btn btn-danger" id="del-diet-btn" onclick="deleteDietRecord()" style="width:100%;" disabled>Borrar esta dieta</button>
-
-      <div class="section-title" style="margin-top:8px;">Borrar dietas de un mes completo</div>
-      <div class="row-2">
-        <div class="field"><label>Empleado</label><select id="del-diet-emp-month">
-          <option value="Marcelino">Marcelino</option>
-          <option value="Pascual">Pascual</option>
-        </select></div>
-        <div class="field"><label>Mes</label><select id="del-diet-month-sel"></select></div>
-      </div>
-      <div id="del-diet-month-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
-      <button class="btn btn-danger" onclick="previewDeleteDietMonth()" style="width:100%;">Ver dietas a borrar</button>
-      <button class="btn btn-danger" id="del-diet-month-btn" onclick="deleteDietMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar dietas del mes</button>
-      <div id="del-diet-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>
-
-      <div class="section-title" style="margin-top:8px;">Borrar tarea de empleado</div>
-      <div class="field"><label>Empleado</label><select id="del-tarea-emp" onchange="loadDelTareaRecords()"></select></div>
-      <div class="field"><label>Tareas registradas</label><select id="del-tarea-sel"><option value="">Cargando...</option></select></div>
-      <div id="del-tarea-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
-      <button class="btn btn-danger" id="del-tarea-btn" onclick="deleteTareaRecord()" style="width:100%;" disabled>Borrar esta tarea</button>
-
-      <div class="section-title" style="margin-top:8px;">Borrar tareas de un mes completo</div>
-      <div class="row-2">
-        <div class="field"><label>Empleado</label><select id="del-tarea-month-emp"></select></div>
-        <div class="field"><label>Mes</label><select id="del-tarea-month-sel"></select></div>
-      </div>
-      <div id="del-tarea-month-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>
-      <button class="btn btn-danger" onclick="previewDeleteTareaMonth()" style="width:100%;">Ver tareas a borrar</button>
-      <button class="btn btn-danger" id="del-tarea-month-btn" onclick="deleteTareaMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar tareas del mes</button>
-      <div id="del-tarea-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>
+      <div id="del-section"></div>
     </div>
-
     <div id="adm-tab-6" class="content" style="display:none;">
       <div class="section-title">Informe de Chiño</div>
       <div style="display:flex;background:var(--bg2);border-bottom:1px solid var(--border);margin:0 -20px;">
@@ -729,13 +696,17 @@ function showTab(idx){
 }
 
 function showAdminTab(idx){
-  [0,1,2,3,4,5,6,7,8].forEach(i=>{document.getElementById('adm-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('adm-btn-'+i).classList.toggle('active',i===idx);});
+  [0,1,3,4,5,6,7,8].forEach(i=>{
+    const t=document.getElementById('adm-tab-'+i);
+    const b=document.getElementById('adm-btn-'+i);
+    if(t)t.style.display=i===idx?'flex':'none';
+    if(b)b.classList.toggle('active',i===idx);
+  });
   if(idx===0)loadFijoInputs();
-  if(idx===1){buildMonthFilter();loadAdminMonth();}
-  if(idx===2)loadAdminAll();
+  if(idx===1)buildResumenTab();
   if(idx===3)buildPassEditor();
-  if(idx===4)buildPDFTab();
-  if(idx===5)buildDeleteTab();
+  if(idx===4)buildInformesTab();
+  if(idx===5)buildDeleteSection();
   if(idx===6)buildChinoTab();
   if(idx===7)tBuildAdmin();
   if(idx===8)buildAdminTareasTab();
@@ -813,6 +784,231 @@ function calNextMonth(){
   if(calYear>maxYear){calYear=maxYear;calMonth=11;}
   renderCalendar();
 }
+
+// ── RESUMEN ───────────────────────────────────────────────────────────────────
+
+function buildResumenTab(){
+  // Poblar selector de mes
+  const mSel=document.getElementById('res-month-sel');
+  if(!mSel.options.length){
+    const now=new Date();
+    for(let i=0;i<24;i++){
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const yyyy=d.getFullYear(),mm=String(d.getMonth()+1).padStart(2,'0');
+      const opt=document.createElement('option');opt.value=yyyy+'-'+mm;opt.textContent=MONTHS[d.getMonth()]+' '+yyyy;
+      mSel.appendChild(opt);
+    }
+  }
+  // Poblar selector de empleado
+  const eSel=document.getElementById('res-emp-sel');
+  if(!eSel.options.length){
+    const todos=document.createElement('option');todos.value='TODOS';todos.textContent='Todos los empleados';eSel.appendChild(todos);
+    EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{const o=document.createElement('option');o.value=e.name;o.textContent=e.name;eSel.appendChild(o);});
+    const ch=document.createElement('option');ch.value='Chiño';ch.textContent='Chiño';eSel.appendChild(ch);
+  }
+  loadResumen();
+}
+
+async function loadResumen(){
+  const monthVal=document.getElementById('res-month-sel').value;
+  const empVal=document.getElementById('res-emp-sel').value;
+  const chkHoras=document.getElementById('res-chk-horas').checked;
+  const chkDietas=document.getElementById('res-chk-dietas').checked;
+  const chkTareas=document.getElementById('res-chk-tareas').checked;
+  const chkDetalle=document.getElementById('res-chk-detalle').checked;
+  const listEl=document.getElementById('res-list');
+  const totEl=document.getElementById('res-totales');
+  const stEl=document.getElementById('res-status');
+  listEl.innerHTML='';totEl.innerHTML='';stEl.style.display='flex';
+  const [yyyy,mm]=monthVal.split('-');
+  function matchMes(fecha){const p=String(fecha).split('/');return p.length===3&&p[2]===yyyy&&p[1]===mm;}
+  try{
+    await loadFijosFromDB();
+    const fijos=getFijos();
+    const [horasRows,dietasRows,tareasRows]=await Promise.all([
+      chkHoras?dbSelectAll():Promise.resolve([]),
+      chkDietas?loadDietasAll():Promise.resolve([]),
+      chkTareas?dbSelectAllTareas():Promise.resolve([])
+    ]);
+    stEl.style.display='none';
+    // Filtrar por mes y empleado
+    const hFilt=horasRows.filter(r=>matchMes(r.fecha)&&(empVal==='TODOS'||r.empleado===empVal));
+    const dFilt=dietasRows.filter(r=>matchMes(r.fecha)&&(empVal==='TODOS'||r.nombre===empVal));
+    const tFilt=tareasRows.filter(r=>matchMes(r.fecha)&&(empVal==='TODOS'||r.empleado===empVal));
+    // Totales
+    const totH=hFilt.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
+    const totD=dFilt.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+    const totT=tFilt.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+    const cardStyle='padding:10px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--card);font-size:12px;';
+    let totHTML='';
+    if(chkHoras)totHTML+='<div style="'+cardStyle+'"><div style="color:var(--text3);margin-bottom:2px;">HORAS</div><div style="font-size:18px;font-weight:700;color:var(--primary);">'+parseFloat(totH.toFixed(2)).toString().replace('.',',')+' h</div></div>';
+    if(chkDietas)totHTML+='<div style="'+cardStyle+'"><div style="color:var(--text3);margin-bottom:2px;">DIETAS</div><div style="font-size:18px;font-weight:700;color:var(--success);">'+totD.toFixed(2).replace('.',',')+'€</div></div>';
+    if(chkTareas)totHTML+='<div style="'+cardStyle+'"><div style="color:var(--text3);margin-bottom:2px;">TAREAS</div><div style="font-size:18px;font-weight:700;color:var(--warn);">'+totT.toFixed(2).replace('.',',')+'€</div></div>';
+    totEl.innerHTML=totHTML;
+    if(!chkHoras&&!chkDietas&&!chkTareas){listEl.innerHTML='<div class="empty">Selecciona al menos un tipo</div>';return;}
+    // Agrupar por empleado
+    const emps=empVal==='TODOS'?[...EMP_LIST.filter(e=>!e.soloTraspasos).map(e=>e.name),'Chiño']:[empVal];
+    let html='';
+    emps.forEach(emp=>{
+      const eh=hFilt.filter(r=>r.empleado===emp);
+      const ed=dFilt.filter(r=>r.nombre===emp);
+      const et=tFilt.filter(r=>r.empleado===emp);
+      if(!eh.length&&!ed.length&&!et.length)return;
+      const empInfo=EMP_LIST.find(e=>e.name===emp);
+      const initials=emp==='Chiño'?'CH':(empInfo?empInfo.initials:'?');
+      const totEmpH=eh.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
+      const totEmpD=ed.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+      const totEmpT=et.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+      const empKey=emp==='Chiño'?'CHINO':(empInfo?empInfo.key:'');
+      const fijoVal=empKey?parseFloat(fijos[empKey]||0):0;
+      // Header empleado
+      let pills='';
+      if(chkHoras&&eh.length)pills+='<span style="background:rgba(99,102,241,0.15);color:var(--primary);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">'+parseFloat(totEmpH.toFixed(2)).toString().replace('.',',')+' h</span>';
+      if(fijoVal>0)pills+='<span style="background:rgba(99,102,241,0.1);color:var(--primary);padding:2px 8px;border-radius:20px;font-size:11px;">fijo '+fijoVal.toFixed(2).replace('.',',')+'€</span>';
+      if(chkDietas&&ed.length)pills+='<span style="background:rgba(16,185,129,0.15);color:var(--success);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">dietas '+totEmpD.toFixed(2).replace('.',',')+'€</span>';
+      if(chkTareas&&et.length)pills+='<span style="background:rgba(245,158,11,0.15);color:var(--warn);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">tareas '+totEmpT.toFixed(2).replace('.',',')+'€</span>';
+      html+='<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;">';
+      html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:'+(chkDetalle?'10':'0')+'px;">';
+      html+='<div class="avatar" style="font-size:11px;flex-shrink:0;">'+initials+'</div>';
+      html+='<div style="flex:1;font-size:14px;font-weight:600;">'+emp+'</div>';
+      html+='<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;">'+pills+'</div></div>';
+      if(chkDetalle){
+        // Horas detalle
+        if(chkHoras&&eh.length){
+          html+='<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Horas</div>';
+          eh.sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha)).forEach(r=>{
+            const t=r.hora_inicio&&r.hora_fin?' · '+r.hora_inicio+'→'+r.hora_fin:'';
+            html+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border2);font-size:12px;"><span style="color:var(--text2);">'+fmtLabel(r.fecha)+t+'</span><span style="color:var(--primary);font-weight:600;">'+fmtH(r.horas)+'</span></div>';
+          });
+        }
+        // Dietas detalle
+        if(chkDietas&&ed.length){
+          html+='<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px;">Dietas</div>';
+          ed.sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha)).forEach(r=>{
+            html+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border2);font-size:12px;"><span style="color:var(--text2);">'+fmtLabel(r.fecha)+(r.descripcion?' · '+r.descripcion:'')+'</span><span style="color:var(--success);font-weight:600;">'+parseFloat(r.importe).toFixed(2).replace('.',',')+'€</span></div>';
+          });
+        }
+        // Tareas detalle
+        if(chkTareas&&et.length){
+          html+='<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px;">Tareas</div>';
+          et.sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha)).forEach(r=>{
+            html+='<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border2);font-size:12px;"><span style="color:var(--text2);">'+fmtLabel(r.fecha)+' · '+r.descripcion+'</span><span style="color:var(--warn);font-weight:600;">'+parseFloat(r.importe).toFixed(2).replace('.',',')+'€</span></div>';
+          });
+        }
+      }
+      html+='</div>';
+    });
+    listEl.innerHTML=html||'<div class="empty">Sin registros ese mes</div>';
+  }catch(e){stEl.style.display='none';listEl.innerHTML='<div class="empty" style="color:var(--danger);">Error: '+e.message+'</div>';}
+}
+
+async function loadDietasAll(){
+  const r=await fetch(API_DIETS+'?order=id.asc&limit=2000',{headers:HDR});
+  if(!r.ok)throw new Error('Error dietas');
+  return r.json();
+}
+
+// ── INFORMES ──────────────────────────────────────────────────────────────────
+
+function buildInformesTab(){
+  // Empleado
+  const eSel=document.getElementById('inf-emp');
+  eSel.innerHTML='<option value="TODOS">Todos los empleados</option>';
+  EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{const o=document.createElement('option');o.value=e.name;o.textContent=e.name;eSel.appendChild(o);});
+  const ch=document.createElement('option');ch.value='Chiño';ch.textContent='Chiño';eSel.appendChild(ch);
+  // Mes (inf-month y los ocultos)
+  const now=new Date();
+  ['inf-month','pdf-month','pdf-diet-month','pdf-tarea-month'].forEach(id=>{
+    const sel=document.getElementById(id);if(!sel)return;sel.innerHTML='';
+    for(let i=0;i<24;i++){
+      const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+      const yyyy=d.getFullYear(),mm=String(d.getMonth()+1).padStart(2,'0');
+      const opt=document.createElement('option');opt.value=yyyy+'-'+mm;opt.textContent=MONTHS[d.getMonth()]+' '+yyyy;
+      sel.appendChild(opt);
+    }
+  });
+  // Empleado en los selects ocultos (pdf-tarea-emp)
+  const pteSel=document.getElementById('pdf-tarea-emp');
+  pteSel.innerHTML='<option value="TODOS">Todos los empleados</option>';
+  EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{const o=document.createElement('option');o.value=e.name;o.textContent=e.name;pteSel.appendChild(o);});
+  const pch=document.createElement('option');pch.value='Chiño';pch.textContent='Chiño';pteSel.appendChild(pch);
+}
+
+async function generateInforme(){
+  const empVal=document.getElementById('inf-emp').value;
+  const monthVal=document.getElementById('inf-month').value;
+  const chkHoras=document.getElementById('inf-chk-horas').checked;
+  const chkDietas=document.getElementById('inf-chk-dietas').checked;
+  const chkTareas=document.getElementById('inf-chk-tareas').checked;
+  if(!chkHoras&&!chkDietas&&!chkTareas){alert('Selecciona al menos un tipo de informe');return;}
+  // Sincronizar selects ocultos
+  document.getElementById('pdf-emp').value=empVal;
+  document.getElementById('pdf-month').value=monthVal;
+  document.getElementById('pdf-diet-month').value=monthVal;
+  document.getElementById('pdf-tarea-month').value=monthVal;
+  document.getElementById('pdf-tarea-emp').value=empVal;
+  // Lanzar PDFs según checkboxes
+  if(chkHoras)await generatePDF();
+  if(chkDietas){
+    // Para dietas: si el empleado es Marcelino o Pascual, usar ese; si es TODOS, usar TODOS
+    const dietEmp=(empVal==='Marcelino'||empVal==='Pascual')?empVal:'TODOS';
+    document.getElementById('pdf-diet-emp').value=dietEmp;
+    await generateDietPDF();
+  }
+  if(chkTareas)await generateTareaPDF();
+}
+
+// ── BORRAR SIMPLIFICADO ───────────────────────────────────────────────────────
+
+function buildDeleteSection(){
+  const tipo=document.getElementById('del-tipo').value;
+  const sec=document.getElementById('del-section');
+  sec.innerHTML='';
+  if(!tipo)return;
+  const EMPS_HORAS=EMP_LIST.filter(e=>!e.soloTraspasos).map(e=>'<option value="'+e.name+'">'+e.name+'</option>').join('');
+  const EMPS_DIETAS='<option value="Marcelino">Marcelino</option><option value="Pascual">Pascual</option>';
+  const EMPS_TAREAS=EMP_LIST.filter(e=>!e.soloTraspasos).map(e=>'<option value="'+e.name+'">'+e.name+'</option>').join('')+'<option value="Chiño">Chiño</option>';
+  const now=new Date();
+  let meses='';for(let i=0;i<24;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0');meses+='<option value="'+y+'-'+m+'">'+MONTHS[d.getMonth()]+' '+y+'</option>';}
+  if(tipo==='hora'){
+    sec.innerHTML='<div class="field"><label>Empleado</label><select id="del-emp-day" onchange="loadDelDayRecords()">'+EMPS_HORAS+'</select></div>'
+      +'<div class="field"><label>Registros</label><select id="del-record-sel"><option>— Selecciona un empleado —</option></select></div>'
+      +'<div id="del-day-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>'
+      +'<button class="btn btn-danger" id="del-day-btn" onclick="deleteRecord()" style="width:100%;" disabled>Borrar este registro</button>';
+    loadDelDayRecords();
+  }else if(tipo==='hora-mes'){
+    sec.innerHTML='<div class="row-2"><div class="field"><label>Empleado</label><select id="del-emp-month">'+EMPS_HORAS+'</select></div><div class="field"><label>Mes</label><select id="del-month-sel">'+meses+'</select></div></div>'
+      +'<div id="del-month-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>'
+      +'<button class="btn btn-danger" onclick="previewDeleteMonth()" style="width:100%;margin-top:8px;">Ver registros a borrar</button>'
+      +'<button class="btn btn-danger" id="del-month-btn" onclick="deleteMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar mes completo</button>'
+      +'<div id="del-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>';
+  }else if(tipo==='dieta'){
+    sec.innerHTML='<div class="field"><label>Empleado</label><select id="del-diet-emp" onchange="loadDelDietRecords()">'+EMPS_DIETAS+'</select></div>'
+      +'<div class="field"><label>Dietas</label><select id="del-diet-sel"><option value="">— Selecciona un empleado —</option></select></div>'
+      +'<div id="del-diet-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>'
+      +'<button class="btn btn-danger" id="del-diet-btn" onclick="deleteDietRecord()" style="width:100%;" disabled>Borrar esta dieta</button>';
+    loadDelDietRecords();
+  }else if(tipo==='dieta-mes'){
+    sec.innerHTML='<div class="row-2"><div class="field"><label>Empleado</label><select id="del-diet-emp-month">'+EMPS_DIETAS+'</select></div><div class="field"><label>Mes</label><select id="del-diet-month-sel">'+meses+'</select></div></div>'
+      +'<div id="del-diet-month-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>'
+      +'<button class="btn btn-danger" onclick="previewDeleteDietMonth()" style="width:100%;margin-top:8px;">Ver dietas a borrar</button>'
+      +'<button class="btn btn-danger" id="del-diet-month-btn" onclick="deleteDietMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar dietas del mes</button>'
+      +'<div id="del-diet-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>';
+  }else if(tipo==='tarea'){
+    sec.innerHTML='<div class="field"><label>Empleado</label><select id="del-tarea-emp" onchange="loadDelTareaRecords()">'+EMPS_TAREAS+'</select></div>'
+      +'<div class="field"><label>Tareas</label><select id="del-tarea-sel"><option value="">Cargando...</option></select></div>'
+      +'<div id="del-tarea-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>'
+      +'<button class="btn btn-danger" id="del-tarea-btn" onclick="deleteTareaRecord()" style="width:100%;" disabled>Borrar esta tarea</button>';
+    loadDelTareaRecords();
+  }else if(tipo==='tarea-mes'){
+    sec.innerHTML='<div class="row-2"><div class="field"><label>Empleado</label><select id="del-tarea-month-emp">'+EMPS_TAREAS+'</select></div><div class="field"><label>Mes</label><select id="del-tarea-month-sel">'+meses+'</select></div></div>'
+      +'<div id="del-tarea-month-preview" style="display:none;background:var(--danger-dim);border:1px solid rgba(248,113,113,0.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:13px;color:var(--danger);"></div>'
+      +'<button class="btn btn-danger" onclick="previewDeleteTareaMonth()" style="width:100%;margin-top:8px;">Ver tareas a borrar</button>'
+      +'<button class="btn btn-danger" id="del-tarea-month-btn" onclick="deleteTareaMonth()" style="width:100%;display:none;">CONFIRMAR — Borrar tareas del mes</button>'
+      +'<div id="del-tarea-status" style="display:none;font-size:13px;text-align:center;padding:10px;border-radius:var(--radius-sm);"></div>';
+  }
+}
+
 
 function buildMonthFilter(){
   const sel=document.getElementById('sel-month-filter');sel.innerHTML='';
@@ -1888,35 +2084,6 @@ function savePass(key){
   setTimeout(()=>{msg.style.display='none';},3000);
 }
 
-
-function buildPDFTab(){
-  // Build employee selector for hours
-  const empSel=document.getElementById('pdf-emp');
-  empSel.innerHTML='<option value="TODOS">Todos los empleados</option>';
-  EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{
-    const opt=document.createElement('option');opt.value=e.name;opt.textContent=e.name;empSel.appendChild(opt);
-  });
-  // Build employee selector for tareas
-  const tareaEmpSel=document.getElementById('pdf-tarea-emp');
-  tareaEmpSel.innerHTML='<option value="TODOS">Todos los empleados</option>';
-  EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{
-    const opt=document.createElement('option');opt.value=e.name;opt.textContent=e.name;tareaEmpSel.appendChild(opt);
-  });
-  // Add Chiño
-  {const opt=document.createElement('option');opt.value='Chiño';opt.textContent='Chiño';tareaEmpSel.appendChild(opt);}
-  // Build month selectors (hours + diets)
-  ['pdf-month','pdf-diet-month','pdf-tarea-month'].forEach(id=>{
-    const mSel=document.getElementById(id);mSel.innerHTML='';
-    const today=new Date();
-    for(let i=0;i<18;i++){
-      const d=new Date(today.getFullYear(),today.getMonth()-i,1);
-      const val=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-      const opt=document.createElement('option');opt.value=val;
-      opt.textContent=MONTHS[d.getMonth()]+' '+d.getFullYear();
-      if(i===0)opt.selected=true;mSel.appendChild(opt);
-    }
-  });
-}
 
 async function generatePDF(){
   const empVal=document.getElementById('pdf-emp').value;
