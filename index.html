@@ -436,7 +436,7 @@
       </div>
     </div>
     <div class="tabs">
-      <div class="tab active" id="adm-btn-0" onclick="showAdminTab(0)">Empleados</div>
+      <div class="tab active" id="adm-btn-0" onclick="showAdminTab(0)">Fijos</div>
       <div class="tab" id="adm-btn-1" onclick="showAdminTab(1)">Por mes</div>
       <div class="tab" id="adm-btn-2" onclick="showAdminTab(2)">Todos</div>
       <div class="tab" id="adm-btn-3" onclick="showAdminTab(3)">Contraseñas</div>
@@ -449,9 +449,7 @@
     <div id="adm-tab-0" class="content">
       <div class="section-title">Fijo mensual por empleado</div>
       <div id="fijo-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <div class="section-title" style="margin-top:4px;">Resumen de horas</div>
-      <div id="adm-status-0" class="status-row"><div class="spinner"></div><span>Cargando...</span></div>
-      <div class="history-list" id="adm-summary"></div>
+      <div id="fijo-save-msg" style="display:none;margin-top:10px;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;text-align:center;"></div>
     </div>
     <div id="adm-tab-1" class="content" style="display:none;">
       <div class="month-filter">
@@ -732,7 +730,7 @@ function showTab(idx){
 
 function showAdminTab(idx){
   [0,1,2,3,4,5,6,7,8].forEach(i=>{document.getElementById('adm-tab-'+i).style.display=i===idx?'flex':'none';document.getElementById('adm-btn-'+i).classList.toggle('active',i===idx);});
-  if(idx===0)loadAdminSummary();
+  if(idx===0)loadFijoInputs();
   if(idx===1){buildMonthFilter();loadAdminMonth();}
   if(idx===2)loadAdminAll();
   if(idx===3)buildPassEditor();
@@ -852,7 +850,7 @@ async function doLogin(){
   if(!isAdmin && !isEmp){err.style.display='block';return;}
   err.style.display='none';currentUser=u;
   await tLoadConfig();
-  if(isAdmin){show('screen-admin');loadAdminSummary();}
+  if(isAdmin){show('screen-admin');loadFijoInputs();}
   else{
     window._empCtx=emp;
     if(esSoloTraspasos(u)){
@@ -1734,31 +1732,28 @@ async function generateTareaPDF(){
   }catch(e){alert('Error: '+e.message);}
   finally{btn.disabled=false;btn.textContent='Generar PDF — Tareas';}
 }
+function fijoRow(key, name, initials, valor){
+  return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
+    <div class="avatar" style="font-size:11px;">${initials}</div>
+    <div style="flex:1;font-size:13px;font-weight:500;">${name}</div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <input type="text" inputmode="decimal" id="fijo-${key}" value="${valor||0}"
+        style="width:90px;padding:7px 10px;font-size:14px;font-weight:600;text-align:right;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);"
+        onkeydown="if(event.key==='Enter')saveFijo('${key}')" />
+      <span style="font-size:13px;color:var(--text2);">€</span>
+      <button onclick="saveFijo('${key}')" style="padding:6px 10px;font-size:12px;background:var(--primary);border:none;border-radius:var(--radius-sm);color:#fff;cursor:pointer;font-weight:600;">OK</button>
+    </div>
+  </div>`;
+}
+
 async function loadFijoInputs(){
   await loadFijosFromDB();
   const fijoList=document.getElementById('fijo-list');
   const fijos=getFijos();
-  const chinoRow=`<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
-      <div class="avatar" style="font-size:11px;">CH</div>
-      <div style="flex:1;font-size:13px;font-weight:500;">Chi\u00f1o</div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <input type="number" id="fijo-CHINO" value="${fijos['CHINO']||0}" min="0" step="0.01"
-          style="width:90px;padding:7px 10px;font-size:14px;font-weight:600;text-align:right;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);"
-          onchange="saveFijo('CHINO')" />
-        <span style="font-size:13px;color:var(--text2);">\u20ac</span>
-      </div>
-    </div>`;
-  fijoList.innerHTML=EMP_LIST.filter(info=>!info.soloTraspasos).map(info=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
-      <div class="avatar" style="font-size:11px;">${info.initials}</div>
-      <div style="flex:1;font-size:13px;font-weight:500;">${info.name}</div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <input type="number" id="fijo-${info.key}" value="${fijos[info.key]||0}" min="0" step="0.01"
-          style="width:90px;padding:7px 10px;font-size:14px;font-weight:600;text-align:right;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);"
-          onchange="saveFijo('${info.key}')" />
-        <span style="font-size:13px;color:var(--text2);">€</span>
-      </div>
-    </div>`).join('')+chinoRow;
+  const empleados=EMP_LIST.filter(info=>!info.soloTraspasos)
+    .map(info=>fijoRow(info.key,info.name,info.initials,fijos[info.key]||0));
+  empleados.push(fijoRow('CHINO','Chi\u00f1o','CH',fijos['CHINO']||0));
+  fijoList.innerHTML=empleados.join('');
 }
 
 let _fijosCache={};
@@ -1776,22 +1771,34 @@ async function loadFijosFromDB(){
 function getFijos(){return _fijosCache;}
 
 async function saveFijo(key){
-  const val=parseFloat(document.getElementById('fijo-'+key).value)||0;
+  const raw=String(document.getElementById('fijo-'+key).value).replace(',','.');
+  const val=parseFloat(raw);
+  if(isNaN(val)||val<0){showFijoMsg('Valor no v\u00e1lido','err');return;}
   _fijosCache[key]=val;
+  // Actualizar visualmente el input con el valor limpio
+  document.getElementById('fijo-'+key).value=val;
   try{
-    // upsert
-    await fetch(API_FIJOS,{
+    const res=await fetch(API_FIJOS,{
       method:'POST',
       headers:{...HDR,'Prefer':'resolution=merge-duplicates'},
       body:JSON.stringify({empleado_key:key,importe:val})
     });
-  }catch(e){console.error('saveFijo',e);}
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'HTTP '+res.status);}
+    showFijoMsg('\u2713 Guardado: '+key+' = '+val.toFixed(2).replace('.',',')+' \u20ac','ok');
+  }catch(e){showFijoMsg('Error: '+e.message,'err');}
+}
+
+function showFijoMsg(txt,tipo){
+  const el=document.getElementById('fijo-save-msg');
+  if(!el)return;
+  el.style.display='block';el.textContent=txt;
+  el.style.background=tipo==='err'?'var(--danger-dim)':'var(--success-dim)';
+  el.style.color=tipo==='err'?'var(--danger)':'var(--success)';
+  el.style.border=tipo==='err'?'1px solid rgba(248,113,113,0.2)':'1px solid rgba(16,185,129,0.3)';
+  if(tipo==='ok')setTimeout(()=>{el.style.display='none';},3000);
 }
 
 async function loadAdminSummary(){
-  const listEl=document.getElementById('adm-summary'),stEl=document.getElementById('adm-status-0');
-  listEl.innerHTML='';stEl.style.display='flex';
-  await loadFijoInputs();
   try{
     const [rows,dietAll]=await Promise.all([dbSelectAll(),dbSelectAllDiets()]);
     stEl.style.display='none';
