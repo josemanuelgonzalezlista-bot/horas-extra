@@ -1809,8 +1809,8 @@ async function generateDietPDF(){
   const monthVal=document.getElementById('pdf-diet-month').value;
   const [yyyy,mm]=monthVal.split('-');
   const monthName=MONTHS[parseInt(mm)-1]+' '+yyyy;
-  const btn=document.querySelectorAll('#adm-tab-4 .btn-primary')[1];
-  btn.disabled=true;btn.textContent='Generando...';
+  const btn=document.querySelector('#adm-tab-4 .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Generando...';}
   try{
     const rows=await dbSelectAllDiets();
     // Filter by month
@@ -1890,7 +1890,7 @@ async function generateDietPDF(){
     setTimeout(()=>w.print(),500);
 
   }catch(e){alert('Error al generar PDF: '+e.message);}
-  finally{btn.disabled=false;btn.textContent='Generar PDF — Dietas';}
+  finally{if(btn){btn.disabled=false;btn.textContent='Generar PDF';}}
 }
 
 async function generateTareaPDF(){
@@ -1898,8 +1898,8 @@ async function generateTareaPDF(){
   const empVal=document.getElementById('pdf-tarea-emp')?document.getElementById('pdf-tarea-emp').value:'TODOS';
   const [yyyy,mm]=monthVal.split('-');
   const monthName=MONTHS[parseInt(mm)-1]+' '+yyyy;
-  const btn=document.querySelectorAll('#adm-tab-4 .btn-primary')[2];
-  btn.disabled=true;btn.textContent='Generando...';
+  const btn=document.querySelector('#adm-tab-4 .btn-primary');
+  if(btn){btn.disabled=true;btn.textContent='Generando...';}
   try{
     const rows=await dbSelectAllTareas();
     const filtered=rows.filter(r=>{
@@ -1926,7 +1926,7 @@ async function generateTareaPDF(){
     const w=window.open('','_blank');w.document.write(html);w.document.close();w.focus();
     setTimeout(()=>w.print(),500);
   }catch(e){alert('Error: '+e.message);}
-  finally{btn.disabled=false;btn.textContent='Generar PDF — Tareas';}
+  finally{if(btn){btn.disabled=false;btn.textContent='Generar PDF';}}
 }
 function fijoRow(key, name, initials, valor){
   return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
@@ -2192,7 +2192,7 @@ async function generatePDF(){
     setTimeout(()=>w.print(),500);
 
   }catch(e){alert('Error al generar PDF: '+e.message);}
-  finally{btn.disabled=false;btn.textContent='Generar y descargar PDF';}
+  finally{if(btn){btn.disabled=false;btn.textContent='Generar PDF';}}
 }
 
 
