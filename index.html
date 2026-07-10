@@ -3042,6 +3042,9 @@ async function generateChinoPDF(mode){
     if(!filtered.length){alert('No hay registros de Chiño en '+periodLabel);return;}
     const tot=filtered.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
     const imp=Math.round(tot*12*100)/100;
+    await loadFijosFromDB();
+    const chinoFijo=parseFloat(getFijos()['CHINO']||0);
+    const chinoFijoCard=chinoFijo>0?`<div class="card" style="background:#fff7ed;border:2px solid #f59e0b;"><div class="label" style="color:#92400e;">Fijo mensual</div><div class="value" style="color:#b45309;">${chinoFijo.toFixed(2).replace('.',',')} €</div></div>`:'';
     let rowsHTML='';let rowNum=1;
     if(isYear){
       const byMonth={};
@@ -3080,6 +3083,7 @@ async function generateChinoPDF(mode){
 <div class="summary">
   <div class="card"><div class="label">Total horas</div><div class="value">${parseFloat(tot.toFixed(2)).toString().replace('.',',')} h</div></div>
   <div class="card imp"><div class="label">Total importe (12€/h)</div><div class="value">${imp.toFixed(2).replace('.',',')} €</div></div>
+  ${chinoFijoCard}
   <div class="card"><div class="label">Registros</div><div class="value">${filtered.length}</div></div>
 </div>
 <table>
