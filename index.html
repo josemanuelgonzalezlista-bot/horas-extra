@@ -2127,19 +2127,22 @@ async function generatePDF(){
     });
 
     const importeTotal = Math.round(tot * 12 * 100) / 100;
-    // Get fijo mensual for single employee or sum for all
+    // Fijo mensual
     await loadFijosFromDB();
     const fijos = getFijos();
     let fijoTotal = 0;
     if(empVal !== 'TODOS'){
-      const empInfo = EMP_LIST.find(e=>e.name===empVal);
-      if(empInfo) fijoTotal = parseFloat(fijos[empInfo.key])||0;
+      if(empVal === 'Chiño'){
+        fijoTotal = parseFloat(fijos['CHINO'])||0;
+      } else {
+        const empInfo = EMP_LIST.find(e=>e.name===empVal);
+        if(empInfo) fijoTotal = parseFloat(fijos[empInfo.key])||0;
+      }
     } else {
-      EMP_LIST.forEach(e=>{ fijoTotal += parseFloat(fijos[e.key])||0; });
+      EMP_LIST.filter(e=>!e.soloTraspasos).forEach(e=>{ fijoTotal += parseFloat(fijos[e.key])||0; });
+      fijoTotal += parseFloat(fijos['CHINO'])||0;
     }
-    const fijoCard = fijoTotal > 0
-      ? `<div class="card fijo"><div class="label">Fijo mensual</div><div class="value">${fijoTotal.toFixed(2).replace('.',',')} €</div></div>`
-      : '';
+    const fijoCard = `<div class="card fijo"><div class="label">Fijo mensual</div><div class="value">${fijoTotal.toFixed(2).replace('.',',')} €</div></div>`;
 
     const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Horas Extra - ${title} - ${monthName}</title>
 <style>
@@ -3044,7 +3047,7 @@ async function generateChinoPDF(mode){
     const imp=Math.round(tot*12*100)/100;
     await loadFijosFromDB();
     const chinoFijo=parseFloat(getFijos()['CHINO']||0);
-    const chinoFijoCard=chinoFijo>0?`<div class="card" style="background:#fff7ed;border:2px solid #f59e0b;"><div class="label" style="color:#92400e;">Fijo mensual</div><div class="value" style="color:#b45309;">${chinoFijo.toFixed(2).replace('.',',')} €</div></div>`:'';
+    const chinoFijoCard=`<div class="card" style="background:#fff7ed;border:2px solid #f59e0b;"><div class="label" style="color:#92400e;">Fijo mensual</div><div class="value" style="color:#b45309;">${chinoFijo.toFixed(2).replace('.',',')} €</div></div>`;
     let rowsHTML='';let rowNum=1;
     if(isYear){
       const byMonth={};
