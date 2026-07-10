@@ -448,7 +448,7 @@
     <div id="adm-tab-0" class="content">
       <div class="section-title">Fijo mensual por empleado</div>
       <div id="fijo-list" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <div id="fijo-save-msg" style="display:none;margin-top:10px;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;text-align:center;"></div>
+      <div id="fijo-msg" style="display:none;margin-top:10px;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;text-align:center;"></div>
     </div>
     <div id="adm-tab-1" class="content" style="display:none;">
       <!-- Filtros -->
@@ -702,7 +702,7 @@ function showAdminTab(idx){
     if(t)t.style.display=i===idx?'flex':'none';
     if(b)b.classList.toggle('active',i===idx);
   });
-  if(idx===0)loadFijoInputs();
+  if(idx===0)loadFijos();
   if(idx===1)buildResumenTab();
   if(idx===3)buildPassEditor();
   if(idx===4)buildInformesTab();
@@ -823,8 +823,6 @@ async function loadResumen(){
   const [yyyy,mm]=monthVal.split('-');
   function matchMes(fecha){const p=String(fecha).split('/');return p.length===3&&p[2]===yyyy&&p[1]===mm;}
   try{
-    await loadFijosFromDB();
-    const fijos=getFijos();
     const [horasRows,dietasRows,tareasRows]=await Promise.all([
       chkHoras?dbSelectAll():Promise.resolve([]),
       chkDietas?loadDietasAll():Promise.resolve([]),
@@ -859,12 +857,9 @@ async function loadResumen(){
       const totEmpH=eh.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
       const totEmpD=ed.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
       const totEmpT=et.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
-      const empKey=emp==='Chiño'?'CHINO':(empInfo?empInfo.key:'');
-      const fijoVal=empKey?parseFloat(fijos[empKey]||0):0;
       // Header empleado
       let pills='';
       if(chkHoras&&eh.length)pills+='<span style="background:rgba(99,102,241,0.15);color:var(--primary);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">'+parseFloat(totEmpH.toFixed(2)).toString().replace('.',',')+' h</span>';
-      if(fijoVal>0)pills+='<span style="background:rgba(99,102,241,0.1);color:var(--primary);padding:2px 8px;border-radius:20px;font-size:11px;">fijo '+fijoVal.toFixed(2).replace('.',',')+'€</span>';
       if(chkDietas&&ed.length)pills+='<span style="background:rgba(16,185,129,0.15);color:var(--success);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">dietas '+totEmpD.toFixed(2).replace('.',',')+'€</span>';
       if(chkTareas&&et.length)pills+='<span style="background:rgba(245,158,11,0.15);color:var(--warn);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">tareas '+totEmpT.toFixed(2).replace('.',',')+'€</span>';
       html+='<div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:8px;">';
@@ -1046,7 +1041,7 @@ async function doLogin(){
   if(!isAdmin && !isEmp){err.style.display='block';return;}
   err.style.display='none';currentUser=u;
   await tLoadConfig();
-  if(isAdmin){show('screen-admin');loadFijoInputs();}
+  if(isAdmin){show('screen-admin');loadFijos();}
   else{
     window._empCtx=emp;
     if(esSoloTraspasos(u)){
@@ -1928,72 +1923,6 @@ async function generateTareaPDF(){
   }catch(e){alert('Error: '+e.message);}
   finally{if(btn){btn.disabled=false;btn.textContent='Generar PDF';}}
 }
-function fijoRow(key, name, initials, valor){
-  return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
-    <div class="avatar" style="font-size:11px;">${initials}</div>
-    <div style="flex:1;font-size:13px;font-weight:500;">${name}</div>
-    <div style="display:flex;align-items:center;gap:6px;">
-      <input type="text" inputmode="decimal" id="fijo-${key}" value="${valor||0}"
-        style="width:90px;padding:7px 10px;font-size:14px;font-weight:600;text-align:right;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);"
-        onkeydown="if(event.key==='Enter')saveFijo('${key}')" />
-      <span style="font-size:13px;color:var(--text2);">€</span>
-      <button onclick="saveFijo('${key}')" style="padding:6px 10px;font-size:12px;background:var(--primary);border:none;border-radius:var(--radius-sm);color:#fff;cursor:pointer;font-weight:600;">OK</button>
-    </div>
-  </div>`;
-}
-
-async function loadFijoInputs(){
-  await loadFijosFromDB();
-  const fijoList=document.getElementById('fijo-list');
-  const fijos=getFijos();
-  const empleados=EMP_LIST.filter(info=>!info.soloTraspasos)
-    .map(info=>fijoRow(info.key,info.name,info.initials,fijos[info.key]||0));
-  empleados.push(fijoRow('CHINO','Chi\u00f1o','CH',fijos['CHINO']||0));
-  fijoList.innerHTML=empleados.join('');
-}
-
-let _fijosCache={};
-
-async function loadFijosFromDB(){
-  try{
-    const res=await fetch(API_FIJOS+'?select=empleado_key,importe',{headers:HDR});
-    if(!res.ok)return;
-    const rows=await res.json();
-    _fijosCache={};
-    rows.forEach(r=>{_fijosCache[r.empleado_key]=parseFloat(r.importe)||0;});
-  }catch(e){console.error('loadFijos',e);}
-}
-
-function getFijos(){return _fijosCache;}
-
-async function saveFijo(key){
-  const raw=String(document.getElementById('fijo-'+key).value).replace(',','.');
-  const val=parseFloat(raw);
-  if(isNaN(val)||val<0){showFijoMsg('Valor no v\u00e1lido','err');return;}
-  _fijosCache[key]=val;
-  // Actualizar visualmente el input con el valor limpio
-  document.getElementById('fijo-'+key).value=val;
-  try{
-    const res=await fetch(API_FIJOS,{
-      method:'POST',
-      headers:{...HDR,'Prefer':'resolution=merge-duplicates'},
-      body:JSON.stringify({empleado_key:key,importe:val})
-    });
-    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'HTTP '+res.status);}
-    showFijoMsg('\u2713 Guardado: '+key+' = '+val.toFixed(2).replace('.',',')+' \u20ac','ok');
-  }catch(e){showFijoMsg('Error: '+e.message,'err');}
-}
-
-function showFijoMsg(txt,tipo){
-  const el=document.getElementById('fijo-save-msg');
-  if(!el)return;
-  el.style.display='block';el.textContent=txt;
-  el.style.background=tipo==='err'?'var(--danger-dim)':'var(--success-dim)';
-  el.style.color=tipo==='err'?'var(--danger)':'var(--success)';
-  el.style.border=tipo==='err'?'1px solid rgba(248,113,113,0.2)':'1px solid rgba(16,185,129,0.3)';
-  if(tipo==='ok')setTimeout(()=>{el.style.display='none';},3000);
-}
-
 async function loadAdminSummary(){
   try{
     const [rows,dietAll]=await Promise.all([dbSelectAll(),dbSelectAllDiets()]);
@@ -2127,25 +2056,12 @@ async function generatePDF(){
     });
 
     const importeTotal = Math.round(tot * 12 * 100) / 100;
-    // Fijo mensual: leer directamente de Supabase
-    let fijoTotal = 0;
-    try{
-      const fijosRes = await fetch(API_FIJOS+'?select=empleado_key,importe', {headers:HDR});
-      const fijosData = fijosRes.ok ? await fijosRes.json() : [];
-      const fijosMap = {};
-      fijosData.forEach(r=>{ fijosMap[r.empleado_key]=parseFloat(r.importe)||0; });
-      if(empVal !== 'TODOS'){
-        if(empVal === 'Chiño'){
-          fijoTotal = fijosMap['CHINO']||0;
-        } else {
-          const empInfo = EMP_LIST.find(e=>e.name===empVal);
-          if(empInfo) fijoTotal = fijosMap[empInfo.key]||0;
-        }
-      } else {
-        Object.values(fijosMap).forEach(v=>{ fijoTotal += v; });
-      }
-    }catch(fe){ fijoTotal=0; }
-    const fijoCard = `<div class="card fijo"><div class="label">Fijo mensual</div><div class="value">${fijoTotal.toFixed(2).replace('.',',')} €</div></div>`;
+    // Fijo mensual
+    let fijoHTML='';
+    if(empVal!=='TODOS'){
+      const fijoVal=await getFijoParaEmp(empVal);
+      if(fijoVal>0) fijoHTML=`<div class="card" style="background:#fff7ed;border:2px solid #f59e0b;"><div class="label" style="color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Fijo mensual</div><div class="value" style="font-size:20px;font-weight:700;color:#b45309;margin-top:4px;">${fijoVal.toFixed(2).replace('.',',')} €</div></div>`;
+    }
 
     const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Horas Extra - ${title} - ${monthName}</title>
 <style>
@@ -2158,9 +2074,7 @@ async function generatePDF(){
   .card .value{font-size:20px;font-weight:700;color:#6c63ff;margin-top:4px;}
   .card.importe{background:#faf0ff;border:2px solid #6c63ff;}
   .card.importe .value{font-size:22px;color:#4c3aff;}
-  .card.fijo{background:#fff7ed;border:2px solid #f59e0b;}
-  .card.fijo .value{font-size:22px;color:#b45309;}
-  table{width:100%;border-collapse:collapse;margin-top:8px;}
+    table{width:100%;border-collapse:collapse;margin-top:8px;}
   th{background:#6c63ff;color:#fff;padding:10px 12px;text-align:left;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;}
   td{border-bottom:1px solid #eee;font-size:13px;}
   .footer{margin-top:32px;font-size:11px;color:#999;text-align:center;border-top:1px solid #eee;padding-top:12px;}
@@ -2173,7 +2087,7 @@ async function generatePDF(){
 <div class="summary">
   <div class="card"><div class="label">Total horas</div><div class="value">${parseFloat(tot.toFixed(2)).toString().replace('.',',')} h</div></div>
   <div class="card importe"><div class="label">Total importe (12 €/h)</div><div class="value">${importeTotal.toFixed(2).replace('.',',')} €</div></div>
-  ${fijoCard}
+  ${fijoHTML}
   <div class="card"><div class="label">Registros</div><div class="value">${filtered.length}</div></div>
   ${empVal!=='TODOS'?'':'<div class="card"><div class="label">Empleados</div><div class="value">'+Object.entries(groups).filter(([,v])=>v.length>0).length+'</div></div>'}
 </div>
@@ -3048,14 +2962,8 @@ async function generateChinoPDF(mode){
     if(!filtered.length){alert('No hay registros de Chiño en '+periodLabel);return;}
     const tot=filtered.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
     const imp=Math.round(tot*12*100)/100;
-    // Fijo mensual Chiño: leer directamente de Supabase
-    let chinoFijo=0;
-    try{
-      const fijosRes=await fetch(API_FIJOS+'?select=empleado_key,importe&empleado_key=eq.CHINO',{headers:HDR});
-      const fijosData=fijosRes.ok?await fijosRes.json():[];
-      chinoFijo=fijosData.length?parseFloat(fijosData[0].importe)||0:0;
-    }catch(fe){chinoFijo=0;}
-    const chinoFijoCard=`<div class="card" style="background:#fff7ed;border:2px solid #f59e0b;"><div class="label" style="color:#92400e;">Fijo mensual</div><div class="value" style="color:#b45309;">${chinoFijo.toFixed(2).replace('.',',')} €</div></div>`;
+    const chinoFijoVal=await getFijoParaEmp('Chiño');
+    const chinoFijoHTML=chinoFijoVal>0?`<div class="card" style="background:#fff7ed;border:2px solid #f59e0b;"><div class="label" style="color:#92400e;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Fijo mensual</div><div class="value" style="font-size:20px;font-weight:700;color:#b45309;margin-top:4px;">${chinoFijoVal.toFixed(2).replace('.',',')} €</div></div>`:'';
     let rowsHTML='';let rowNum=1;
     if(isYear){
       const byMonth={};
@@ -3094,7 +3002,7 @@ async function generateChinoPDF(mode){
 <div class="summary">
   <div class="card"><div class="label">Total horas</div><div class="value">${parseFloat(tot.toFixed(2)).toString().replace('.',',')} h</div></div>
   <div class="card imp"><div class="label">Total importe (12€/h)</div><div class="value">${imp.toFixed(2).replace('.',',')} €</div></div>
-  ${chinoFijoCard}
+  ${chinoFijoHTML}
   <div class="card"><div class="label">Registros</div><div class="value">${filtered.length}</div></div>
 </div>
 <table>
@@ -3107,6 +3015,78 @@ async function generateChinoPDF(mode){
   }catch(e){alert('Error: '+e.message);}
   finally{btn.disabled=false;btn.textContent='Generar PDF — Este '+(isYear?'año':'mes');}
 }
+
+// ── FIJOS ─────────────────────────────────────────────────────────────────────
+
+async function loadFijos(){
+  const listEl=document.getElementById('fijo-list');
+  listEl.innerHTML='<div class="status-row"><div class="spinner"></div><span>Cargando...</span></div>';
+  try{
+    const res=await fetch(API_FIJOS+'?select=empleado_key,importe',{headers:HDR});
+    const rows=res.ok?await res.json():[];
+    const map={};
+    rows.forEach(r=>{map[r.empleado_key]=parseFloat(r.importe)||0;});
+    // Todos los empleados + Chiño
+    const todos=[...EMP_LIST.filter(e=>!e.soloTraspasos),{key:'CHINO',name:'Chiño',initials:'CH'}];
+    listEl.innerHTML=todos.map(e=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);">
+        <div class="avatar" style="font-size:11px;">${e.initials}</div>
+        <div style="flex:1;font-size:13px;font-weight:500;">${e.name}</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="text" inputmode="decimal" id="fijo-${e.key}"
+            value="${(map[e.key]||0).toFixed(2).replace('.',',')}"
+            style="width:90px;padding:7px 10px;font-size:14px;font-weight:600;text-align:right;background:var(--card2);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);"
+            onkeydown="if(event.key==='Enter')saveFijo('${e.key}','${e.name}')"/>
+          <span style="font-size:13px;color:var(--text2);">€</span>
+          <button onclick="saveFijo('${e.key}','${e.name}')"
+            style="padding:6px 12px;font-size:12px;background:var(--primary);border:none;border-radius:var(--radius-sm);color:#fff;cursor:pointer;font-weight:600;">OK</button>
+        </div>
+      </div>`).join('');
+  }catch(e){listEl.innerHTML='<div class="empty" style="color:var(--danger);">Error: '+e.message+'</div>';}
+}
+
+async function saveFijo(key,name){
+  const input=document.getElementById('fijo-'+key);
+  const raw=String(input.value).replace(',','.');
+  const val=parseFloat(raw);
+  if(isNaN(val)||val<0){showFijoMsg('Valor no válido','err');return;}
+  input.value=val.toFixed(2).replace('.',',');
+  const btn=input.nextElementSibling.nextElementSibling;
+  if(btn){btn.disabled=true;btn.textContent='...';}
+  try{
+    const res=await fetch(API_FIJOS,{
+      method:'POST',
+      headers:{...HDR,'Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify({empleado_key:key,importe:val})
+    });
+    if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e.message||'HTTP '+res.status);}
+    showFijoMsg('✓ '+name+': '+val.toFixed(2).replace('.',',')+' € guardado','ok');
+  }catch(e){showFijoMsg('Error: '+e.message,'err');}
+  finally{if(btn){btn.disabled=false;btn.textContent='OK';}}
+}
+
+function showFijoMsg(txt,tipo){
+  const el=document.getElementById('fijo-msg');
+  if(!el)return;
+  el.style.display='block';
+  el.textContent=txt;
+  el.style.background=tipo==='err'?'var(--danger-dim)':'var(--success-dim)';
+  el.style.color=tipo==='err'?'var(--danger)':'var(--success)';
+  el.style.border=tipo==='err'?'1px solid rgba(248,113,113,0.2)':'1px solid rgba(16,185,129,0.3)';
+  if(tipo==='ok')setTimeout(()=>{el.style.display='none';},3000);
+}
+
+async function getFijoParaEmp(empVal){
+  // Devuelve el importe fijo de un empleado concreto (o 0 si no tiene)
+  try{
+    const key=empVal==='Chiño'?'CHINO':(EMP_LIST.find(e=>e.name===empVal)||{}).key||'';
+    if(!key)return 0;
+    const res=await fetch(API_FIJOS+'?select=importe&empleado_key=eq.'+key,{headers:HDR});
+    const rows=res.ok?await res.json():[];
+    return rows.length?parseFloat(rows[0].importe)||0:0;
+  }catch(e){return 0;}
+}
+
 
 document.getElementById('login-user').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('login-pass').focus();});
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
