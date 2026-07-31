@@ -930,26 +930,12 @@ function buildInformesTab(){
 }
 
 async function generateInforme(){
-  const empVal=document.getElementById('inf-emp').value;
-  const monthVal=document.getElementById('inf-month').value;
   const chkHoras=document.getElementById('inf-chk-horas').checked;
   const chkDietas=document.getElementById('inf-chk-dietas').checked;
   const chkTareas=document.getElementById('inf-chk-tareas').checked;
   if(!chkHoras&&!chkDietas&&!chkTareas){alert('Selecciona al menos un tipo de informe');return;}
-  // Sincronizar selects ocultos
-  document.getElementById('pdf-emp').value=empVal;
-  document.getElementById('pdf-month').value=monthVal;
-  document.getElementById('pdf-diet-month').value=monthVal;
-  document.getElementById('pdf-tarea-month').value=monthVal;
-  document.getElementById('pdf-tarea-emp').value=empVal;
-  // Lanzar PDFs según checkboxes
   if(chkHoras)await generatePDF();
-  if(chkDietas){
-    // Para dietas: si el empleado es Marcelino o Pascual, usar ese; si es TODOS, usar TODOS
-    const dietEmp=(empVal==='Marcelino'||empVal==='Pascual')?empVal:'TODOS';
-    document.getElementById('pdf-diet-emp').value=dietEmp;
-    await generateDietPDF();
-  }
+  if(chkDietas)await generateDietPDF();
   if(chkTareas)await generateTareaPDF();
 }
 
@@ -1800,8 +1786,9 @@ async function loadHistory(){
 }
 
 async function generateDietPDF(){
-  const empVal=document.getElementById('pdf-diet-emp').value;
-  const monthVal=document.getElementById('pdf-diet-month').value;
+  const _infEmp=document.getElementById('inf-emp')?document.getElementById('inf-emp').value:'TODOS';
+  const empVal=(_infEmp==='Marcelino'||_infEmp==='Pascual')?_infEmp:'TODOS';
+  const monthVal=document.getElementById('inf-month')?document.getElementById('inf-month').value:(document.getElementById('pdf-diet-month')?document.getElementById('pdf-diet-month').value:'');
   const [yyyy,mm]=monthVal.split('-');
   const monthName=MONTHS[parseInt(mm)-1]+' '+yyyy;
   const btn=document.querySelector('#adm-tab-4 .btn-primary');
@@ -1889,8 +1876,8 @@ async function generateDietPDF(){
 }
 
 async function generateTareaPDF(){
-  const monthVal=document.getElementById('pdf-tarea-month').value;
-  const empVal=document.getElementById('pdf-tarea-emp')?document.getElementById('pdf-tarea-emp').value:'TODOS';
+  const monthVal=document.getElementById('inf-month')?document.getElementById('inf-month').value:(document.getElementById('pdf-tarea-month')?document.getElementById('pdf-tarea-month').value:'');
+  const empVal=document.getElementById('inf-emp')?document.getElementById('inf-emp').value:'TODOS';
   const [yyyy,mm]=monthVal.split('-');
   const monthName=MONTHS[parseInt(mm)-1]+' '+yyyy;
   const btn=document.querySelector('#adm-tab-4 .btn-primary');
@@ -2015,8 +2002,8 @@ function savePass(key){
 
 
 async function generatePDF(){
-  const empVal=document.getElementById('pdf-emp').value;
-  const monthVal=document.getElementById('pdf-month').value; // yyyy-mm
+  const empVal=document.getElementById('inf-emp')?document.getElementById('inf-emp').value:(document.getElementById('pdf-emp')?document.getElementById('pdf-emp').value:'TODOS');
+  const monthVal=document.getElementById('inf-month')?document.getElementById('inf-month').value:(document.getElementById('pdf-month')?document.getElementById('pdf-month').value:'');
   const [yyyy,mm]=monthVal.split('-');
   const monthName=MONTHS[parseInt(mm)-1]+' '+yyyy;
   const btn=document.querySelector('#adm-tab-4 .btn-primary');
