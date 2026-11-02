@@ -831,7 +831,7 @@ async function loadResumen(){
     stEl.style.display='none';
     // Filtrar por mes y empleado
     const hFilt=horasRows.filter(r=>matchMes(r.fecha)&&(empVal==='TODOS'||r.empleado===empVal));
-    const dFilt=dietasRows.filter(r=>matchMes(r.fecha)&&(empVal==='TODOS'||r.nombre===empVal));
+    const dFilt=dietasRows.filter(r=>matchMes(r.fecha)&&(empVal==='TODOS'||r.empleado===empVal));
     const tFilt=tareasRows.filter(r=>matchMes(r.fecha)&&(empVal==='TODOS'||r.empleado===empVal));
     // Totales
     const totH=hFilt.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
@@ -849,7 +849,7 @@ async function loadResumen(){
     let html='';
     emps.forEach(emp=>{
       const eh=hFilt.filter(r=>r.empleado===emp);
-      const ed=dFilt.filter(r=>r.nombre===emp);
+      const ed=dFilt.filter(r=>r.empleado===emp);
       const et=tFilt.filter(r=>r.empleado===emp);
       if(!eh.length&&!ed.length&&!et.length)return;
       const empInfo=EMP_LIST.find(e=>e.name===emp);
@@ -1007,7 +1007,7 @@ async function generateInforme(){
       }
       // DIETAS (solo Marcelino y Pascual)
       if(chkDietas&&(emp==='Marcelino'||emp==='Pascual')){
-        const ed=dietasRows.filter(r=>matchMes(r.fecha)&&r.nombre===emp).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
+        const ed=dietasRows.filter(r=>matchMes(r.fecha)&&r.empleado===emp).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
         if(ed.length){
           const totD=ed.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
           let rows='';let n=1;
@@ -1908,7 +1908,7 @@ async function generateDietPDF(){
     });
     // Filter by employee
     const dietEmps=empVal==='TODOS'?['Marcelino','Pascual']:[empVal];
-    filtered=filtered.filter(r=>dietEmps.includes(r.nombre));
+    filtered=filtered.filter(r=>dietEmps.includes(r.empleado));
     filtered.sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
 
     const tot=filtered.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
@@ -1917,7 +1917,7 @@ async function generateDietPDF(){
     // Group by employee
     const groups={};
     dietEmps.forEach(e=>{groups[e]=[];});
-    filtered.forEach(r=>{if(groups[r.nombre])groups[r.nombre].push(r);});
+    filtered.forEach(r=>{if(groups[r.empleado])groups[r.empleado].push(r);});
 
     let rowsHTML='';let rowNum=1;
     Object.entries(groups).filter(([,v])=>v.length>0).forEach(([emp,recs])=>{
