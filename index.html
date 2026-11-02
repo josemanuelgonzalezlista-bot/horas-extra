@@ -937,13 +937,12 @@ async function generateInforme(){
   const monthVal=document.getElementById('inf-month').value;
   if(!chkHoras&&!chkDietas&&!chkTareas){alert('Selecciona al menos un tipo de informe');return;}
   if(empVal!=='TODOS'){
-    // Informe individual: generar PDFs separados como antes
     if(chkHoras)await generatePDF();
     if(chkDietas)await generateDietPDF();
     if(chkTareas)await generateTareaPDF();
     return;
   }
-  // TODOS: generar un único PDF unificado con todos los empleados
+  // TODOS: un único PDF con las mismas páginas que los informes individuales
   const btn=document.querySelector('#adm-tab-4 .btn-primary');
   if(btn){btn.disabled=true;btn.textContent='Generando...';}
   try{
@@ -956,91 +955,90 @@ async function generateInforme(){
       chkTareas?dbSelectAllTareas():Promise.resolve([])
     ]);
     const empleados=[...EMP_LIST.filter(e=>!e.soloTraspasos),{key:'CHINO',name:'Chiño',initials:'CH'}];
-    const css='body{font-family:Arial,sans-serif;margin:30px;color:#1a1a2e;font-size:13px;}'
-      +'.emp-section{page-break-inside:avoid;margin-bottom:36px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;}'
-      +'.emp-header{background:#6c63ff;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;}'
-      +'.emp-header h2{margin:0;font-size:16px;font-weight:700;}'
-      +'.emp-header .pills{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}'
-      +'.pill{background:rgba(255,255,255,0.25);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}'
-      +'.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6c63ff;padding:8px 14px 4px;background:#f5f5ff;border-bottom:1px solid #e0e0ff;}'
-      +'.section-title.diet{color:#059669;background:#f0fdf4;border-bottom-color:#d1fae5;}'
-      +'.section-title.tarea{color:#b45309;background:#fffbeb;border-bottom-color:#fde68a;}'
-      +'.section-title.fijo{color:#b45309;background:#fff7ed;border-bottom-color:#fed7aa;}'
-      +'table{width:100%;border-collapse:collapse;}'
-      +'th{background:#f3f4f6;color:#374151;padding:7px 12px;text-align:left;font-size:11px;letter-spacing:0.5px;text-transform:uppercase;border-bottom:2px solid #e5e7eb;}'
-      +'td{border-bottom:1px solid #f3f4f6;padding:6px 12px;font-size:12px;}'
-      +'.summary-bar{display:flex;flex-wrap:wrap;gap:12px;padding:10px 14px;background:#fafafa;border-top:1px solid #e5e7eb;}'
-      +'.scard{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:8px 14px;flex:1;min-width:100px;}'
-      +'.scard .lbl{font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;}'
-      +'.scard .val{font-size:16px;font-weight:700;color:#6c63ff;margin-top:2px;}'
-      +'.scard.green .val{color:#059669;}'
-      +'.scard.amber .val{color:#b45309;}'
-      +'h1{font-size:20px;margin-bottom:4px;} .sub{color:#666;font-size:12px;margin-bottom:20px;}'
-      +'.footer{margin-top:24px;font-size:10px;color:#9ca3af;text-align:center;border-top:1px solid #eee;padding-top:10px;}'
-      +'@media print{body{margin:15px;}.emp-section{page-break-inside:avoid;}}';
-    let bodyHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">'
-      +'<div><h1>Informe General — '+monthName+'</h1><div class="sub">Todos los empleados · '+(chkHoras?'Horas ':'')+(chkDietas?'Dietas ':'')+(chkTareas?'Tareas ':'')+'</div></div>'
-      +'<div style="font-size:11px;color:#9ca3af;">Generado: '+new Date().toLocaleString('es-ES')+'</div></div>';
+    // CSS compartido = unión de los 3 estilos individuales
+    const css='body{font-family:Arial,sans-serif;margin:40px;color:#1a1a2e;font-size:14px;}'
+      +'h1{font-size:22px;margin-bottom:4px;color:#1a1a2e;}'
+      +'.sub{color:#666;font-size:13px;margin-bottom:24px;}'
+      +'.summary{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:24px;}'
+      +'.card{background:#f0f0ff;border-radius:8px;padding:14px 20px;flex:1;min-width:130px;}'
+      +'.card .label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;}'
+      +'.card .value{font-size:20px;font-weight:700;color:#6c63ff;margin-top:4px;}'
+      +'.card.importe{background:#faf0ff;border:2px solid #6c63ff;}'
+      +'.card.importe .value{font-size:22px;color:#4c3aff;}'
+      +'.card.fijo{background:#fff7ed;border:2px solid #f59e0b;}'
+      +'.card.fijo .label{color:#92400e;}'
+      +'.card.fijo .value{color:#b45309;}'
+      +'.card.diet{background:#e8fdf5;border:1px solid #a7f3d0;}'
+      +'.card.diet .label{color:#065f46;}'
+      +'.card.diet .value{color:#059669;}'
+      +'.card.tarea{background:#fffbeb;border:1px solid #fcd34d;}'
+      +'.card.tarea .label{color:#92400e;}'
+      +'.card.tarea .value{color:#b45309;}'
+      +'table{width:100%;border-collapse:collapse;margin-top:8px;}'
+      +'th{padding:10px 12px;text-align:left;font-size:12px;letter-spacing:0.5px;text-transform:uppercase;color:#fff;}'
+      +'th.h{background:#6c63ff;} th.d{background:#059669;} th.t{background:#b45309;}'
+      +'td{border-bottom:1px solid #eee;font-size:13px;padding:8px 12px;}'
+      +'.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:20px;}'
+      +'.footer{margin-top:32px;font-size:11px;color:#999;text-align:center;border-top:1px solid #eee;padding-top:12px;}'
+      +'.page{page-break-before:always;padding-top:10px;}'
+      +'.page:first-child{page-break-before:avoid;}'
+      +'@media print{body{margin:20px;}}';
+    const pages=[];
+    let isFirst=true;
     for(const empInfo of empleados){
       const emp=empInfo.name;
-      const eh=chkHoras?horasRows.filter(r=>matchMes(r.fecha)&&r.empleado===emp):[];
-      const ed=chkDietas?dietasRows.filter(r=>matchMes(r.fecha)&&r.nombre===emp):[];
-      const et=chkTareas?tareasRows.filter(r=>matchMes(r.fecha)&&r.empleado===emp):[];
-      // Fijo
       const fijoVal=await getFijoParaEmp(emp);
-      if(!eh.length&&!ed.length&&!et.length&&fijoVal<=0)continue;
-      const totH=eh.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
-      const totD=ed.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
-      const totT=et.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
-      let pills='';
-      if(chkHoras&&eh.length)pills+='<span class="pill">'+parseFloat(totH.toFixed(2)).toString().replace('.',',')+'h</span>';
-      if(chkDietas&&ed.length)pills+='<span class="pill">Dietas '+totD.toFixed(2).replace('.',',')+'€</span>';
-      if(chkTareas&&et.length)pills+='<span class="pill">Tareas '+totT.toFixed(2).replace('.',',')+'€</span>';
-      if(fijoVal>0)pills+='<span class="pill">Fijo '+fijoVal.toFixed(2).replace('.',',')+'€</span>';
-      bodyHTML+='<div class="emp-section"><div class="emp-header"><h2>'+emp+'</h2><div class="pills">'+pills+'</div></div>';
-      // Horas
+      // HORAS
       if(chkHoras){
-        if(eh.length){
+        const eh=horasRows.filter(r=>matchMes(r.fecha)&&r.empleado===emp).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
+        if(eh.length||fijoVal>0){
+          const totH=eh.reduce((s,r)=>s+(parseFloat(r.horas)||0),0);
           const impH=Math.round(totH*12*100)/100;
-          bodyHTML+='<div class="section-title">Horas</div><table><thead><tr><th>Fecha</th><th>Horario</th><th>Horas</th></tr></thead><tbody>';
-          eh.sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha)).forEach(r=>{
-            const ti=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'—';
-            bodyHTML+='<tr><td>'+fmtLabel(r.fecha)+'</td><td>'+ti+'</td><td style="font-weight:600;color:#6c63ff;">'+parseFloat(parseFloat(r.horas).toFixed(2)).toString().replace('.',',')+'h</td></tr>';
-          });
-          bodyHTML+='</tbody></table>';
-          bodyHTML+='<div class="summary-bar"><div class="scard"><div class="lbl">Total horas</div><div class="val">'+parseFloat(totH.toFixed(2)).toString().replace('.',',')+'h</div></div><div class="scard"><div class="lbl">Importe (12€/h)</div><div class="val">'+impH.toFixed(2).replace('.',',')+'€</div></div></div>';
+          const fijoCard=fijoVal>0?'<div class="card fijo"><div class="label">Fijo mensual</div><div class="value">'+fijoVal.toFixed(2).replace('.',',')+'€</div></div>':'';
+          let rows='';let n=1;
+          eh.forEach(r=>{const ti=r.hora_inicio&&r.hora_fin?r.hora_inicio+' → '+r.hora_fin:'—';const bg=n++%2===0?'#f8f8ff':'#fff';rows+='<tr style="background:'+bg+';"><td>'+fmtLabel(r.fecha)+'</td><td>'+ti+'</td><td style="text-align:center;font-weight:600;">'+parseFloat(parseFloat(r.horas).toFixed(2)).toString().replace('.',',')+'h</td><td style="font-size:12px;color:#666;">'+(r.timestamp||'')+'</td></tr>';});
+          pages.push('<div class="'+(isFirst?'':'page')+'">'
+            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;"><div><h1>Informe de Horas Extra</h1><div class="sub">'+emp+' · '+monthName+'</div></div><div style="font-size:12px;color:#999;">Generado: '+new Date().toLocaleString('es-ES')+'</div></div>'
+            +'<div class="summary"><div class="card"><div class="label">Total horas</div><div class="value">'+parseFloat(totH.toFixed(2)).toString().replace('.',',')+'h</div></div><div class="card importe"><div class="label">Total importe (12€/h)</div><div class="value">'+impH.toFixed(2).replace('.',',')+'€</div></div>'+fijoCard+'<div class="card"><div class="label">Registros</div><div class="value">'+eh.length+'</div></div></div>'
+            +(eh.length?'<table><thead><tr><th class="h">Fecha</th><th class="h">Horario</th><th class="h">Horas</th><th class="h">Registrado</th></tr></thead><tbody>'+rows+'</tbody></table>':'<p style="color:#999;font-size:13px;">Sin registros de horas este mes.</p>')
+            +'<div class="footer">Horas Extra App · '+emp+' · '+monthName+'</div></div>');
+          isFirst=false;
         }
       }
-      // Dietas (solo Marcelino y Pascual)
+      // DIETAS (solo Marcelino y Pascual)
       if(chkDietas&&(emp==='Marcelino'||emp==='Pascual')){
+        const ed=dietasRows.filter(r=>matchMes(r.fecha)&&r.nombre===emp).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
         if(ed.length){
-          bodyHTML+='<div class="section-title diet">Dietas</div><table><thead><tr><th>Fecha</th><th>Importe</th><th>Descripción</th></tr></thead><tbody>';
-          ed.sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha)).forEach(r=>{
-            bodyHTML+='<tr><td>'+fmtLabel(r.fecha)+'</td><td style="font-weight:600;color:#059669;">'+parseFloat(r.importe).toFixed(2).replace('.',',')+'€</td><td style="color:#666;font-size:11px;">'+(r.descripcion||'')+'</td></tr>';
-          });
-          bodyHTML+='</tbody></table>';
-          bodyHTML+='<div class="summary-bar"><div class="scard green"><div class="lbl">Total dietas</div><div class="val">'+totD.toFixed(2).replace('.',',')+'€</div></div><div class="scard green"><div class="lbl">Nº dietas</div><div class="val">'+ed.length+'</div></div></div>';
+          const totD=ed.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+          let rows='';let n=1;
+          ed.forEach(r=>{const bg=n++%2===0?'#f0fdf9':'#fff';rows+='<tr style="background:'+bg+';"><td>'+fmtLabel(r.fecha)+'</td><td style="font-weight:700;color:#059669;">'+parseFloat(r.importe).toFixed(2).replace('.',',')+'€</td><td style="font-size:12px;color:#666;">'+(r.timestamp||'')+'</td></tr>';});
+          pages.push('<div class="'+(isFirst?'':'page')+'">'
+            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;"><div><h1>Informe de Dietas</h1><div class="sub">'+emp+' · '+monthName+'</div></div><div style="font-size:12px;color:#999;">Generado: '+new Date().toLocaleString('es-ES')+'</div></div>'
+            +'<span class="badge" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">Dietas · '+monthName+'</span>'
+            +'<div class="summary"><div class="card diet"><div class="label">Total importe</div><div class="value">'+totD.toFixed(2).replace('.',',')+'€</div></div><div class="card diet"><div class="label">Nº de dietas</div><div class="value">'+ed.length+'</div></div></div>'
+            +'<table><thead><tr><th class="d">Fecha</th><th class="d">Importe</th><th class="d">Registrado</th></tr></thead><tbody>'+rows+'</tbody></table>'
+            +'<div class="footer">Horas Extra App · Dietas · '+emp+' · '+monthName+'</div></div>');
+          isFirst=false;
         }
       }
-      // Tareas
+      // TAREAS
       if(chkTareas){
+        const et=tareasRows.filter(r=>matchMes(r.fecha)&&r.empleado===emp).sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha));
         if(et.length){
-          bodyHTML+='<div class="section-title tarea">Tareas</div><table><thead><tr><th>Fecha</th><th>Descripción</th><th>Importe</th></tr></thead><tbody>';
-          et.sort((a,b)=>parseDate(a.fecha)-parseDate(b.fecha)).forEach(r=>{
-            bodyHTML+='<tr><td>'+fmtLabel(r.fecha)+'</td><td>'+r.descripcion+'</td><td style="font-weight:600;color:#b45309;">'+parseFloat(r.importe).toFixed(2).replace('.',',')+'€</td></tr>';
-          });
-          bodyHTML+='</tbody></table>';
-          bodyHTML+='<div class="summary-bar"><div class="scard amber"><div class="lbl">Total tareas</div><div class="val">'+totT.toFixed(2).replace('.',',')+'€</div></div><div class="scard amber"><div class="lbl">Nº tareas</div><div class="val">'+et.length+'</div></div></div>';
+          const totT=et.reduce((s,r)=>s+(parseFloat(r.importe)||0),0);
+          let rows='';let n=1;
+          et.forEach(r=>{const bg=n++%2===0?'#fffbeb':'#fff';rows+='<tr style="background:'+bg+';"><td>'+fmtLabel(r.fecha)+'</td><td>'+r.empleado+'</td><td>'+r.descripcion+'</td><td style="font-weight:700;color:#b45309;">'+parseFloat(r.importe).toFixed(2).replace('.',',')+'€</td><td style="font-size:12px;color:#666;">'+(r.timestamp||'')+'</td></tr>';});
+          pages.push('<div class="'+(isFirst?'':'page')+'">'
+            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;"><div><h1>Tareas Extra — '+emp+'</h1><div class="sub">'+monthName+'</div></div><div style="font-size:12px;color:#999;">Generado: '+new Date().toLocaleString('es-ES')+'</div></div>'
+            +'<div class="summary"><div class="card tarea"><div class="label">Total importe</div><div class="value">'+totT.toFixed(2).replace('.',',')+'€</div></div><div class="card tarea"><div class="label">Nº de tareas</div><div class="value">'+et.length+'</div></div></div>'
+            +'<table><thead><tr><th class="t">Fecha</th><th class="t">Empleado</th><th class="t">Descripción</th><th class="t">Importe</th><th class="t">Registrado</th></tr></thead><tbody>'+rows+'</tbody></table>'
+            +'<div class="footer">Horas Extra App · Tareas Extra · '+emp+' · '+monthName+'</div></div>');
+          isFirst=false;
         }
       }
-      // Fijo mensual
-      if(fijoVal>0){
-        bodyHTML+='<div class="section-title fijo">Fijo mensual</div><div class="summary-bar"><div class="scard amber"><div class="lbl">Fijo</div><div class="val">'+fijoVal.toFixed(2).replace('.',',')+'€</div></div></div>';
-      }
-      bodyHTML+='</div>';
     }
-    bodyHTML+='<div class="footer">Horas Extra App · Informe General · '+monthName+'</div>';
-    const html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Informe General - '+monthName+'</title><style>'+css+'</style></head><body>'+bodyHTML+'</body></html>';
+    if(!pages.length){alert('No hay datos para el mes seleccionado');return;}
+    const html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Informe General - '+monthName+'</title><style>'+css+'</style></head><body>'+pages.join('')+'</body></html>';
     const w=window.open('','_blank');w.document.write(html);w.document.close();w.focus();
     setTimeout(()=>w.print(),600);
   }catch(e){alert('Error al generar informe: '+e.message);}
